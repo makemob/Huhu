@@ -1,3 +1,7 @@
+# LPCXpresso build files
+*.launch
+Debug
+
 # Object files
 *.o
 *.ko
