@@ -1,6 +1,9 @@
 # LPCXpresso build files
 *.launch
 Debug
+.cproject
+.project
+.settings
 
 # Object files
 *.o
