@@ -55,6 +55,7 @@ typedef enum {
 	MB_MOTOR_PWM_DUTY_LSW,
 	MB_INWARD_ENDSTOP_COUNT,
 	MB_OUTWARD_ENDSTOP_COUNT,
+	MB_HEARTBEAT_EXPIRIES,
 
 	// Position info etc. = 300
 
@@ -67,13 +68,14 @@ typedef enum {
 	MB_DEFAULT_CURRENT_LIMIT_OUTWARD,
 	MB_MAX_CURRENT_LIMIT_INWARD,
 	MB_MAX_CURRENT_LIMIT_OUTWARD,
+	MB_HEARTBEAT_TIMEOUT,  // seconds until heartbeat timer trips
 
 	NUM_MODBUS_REGS
 } modbusRegMap_t;
 
 #define MODBUS_BAUD_RATE (9600)
 
-#define MODBUS_SLAVE_ID (4)
+#define MODBUS_SLAVE_ID (11)
 
 uint16_t ModbusPoll(void);
 

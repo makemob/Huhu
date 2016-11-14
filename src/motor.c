@@ -18,6 +18,8 @@
 
 #define MAX_BATT_VOLTAGE (40000)     // mV
 
+#define DEFAULT_HEARTBEAT_TIMEOUT (5)  // seconds between heartbeats before motor stops
+
 #define MIN_SPEED (10)    // %, set to ensure interrupt can trigger fast enough to maintain duty cycle
 #define MAX_SPEED (90)   // %, set to ensure HSD bootstrap capacitor remains charged
 
@@ -50,6 +52,8 @@ static uint16_t battVoltageTrips = 0;
 static uint16_t inwardEndstops = 0;
 static uint16_t outwardEndstops = 0;
 
+static uint16_t heartbeatExpiries = 0;
+static uint16_t heartbeatTimeout = DEFAULT_HEARTBEAT_TIMEOUT;
 
 // Store the high & low side ports for the PWM FETs
 static uint8_t bridgeUpperPort;
@@ -201,6 +205,11 @@ void MotorPoll(void) {
 		if ((speedActual > 0) && HardwareGetOutwardEndstop()) {
 			MotorEStop();
 			outwardEndstops++;
+		}
+
+		if(heartbeatTimeout && speedActual && TimerCheckExpired(TIMER_HEARTBEAT)) {
+			MotorEStop();
+			heartbeatExpiries++;
 		}
 	}
 
@@ -374,6 +383,24 @@ uint16_t MotorGetInwardEndstops(void) {
 
 uint16_t MotorGetOutwardEndstops(void) {
 	return (outwardEndstops);
+}
+
+void MotorNotifyHeartbeat(void) {
+	if (heartbeatTimeout) {
+		TimerSetDurationMs(TIMER_HEARTBEAT, heartbeatTimeout * 1000);
+	}
+}
+
+uint16_t MotorGetHeartbeatExpiries(void) {
+	return (heartbeatExpiries);
+}
+
+void MotorSetHeartbeatTimeout(uint16_t seconds) {
+	heartbeatTimeout = seconds;
+}
+
+uint16_t MotorGetHeartbeatTimeout(void) {
+	return (heartbeatTimeout);
 }
 
 uint32_t MotorGetPWMPeriod(void) {

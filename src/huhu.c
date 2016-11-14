@@ -20,23 +20,37 @@
 
 #include <stdio.h>  // Note floating-point printf is enabled (sizeable)
 
+#define WATCHDOG_SECONDS (2)  // approx
 
 /* TODO:
+ * Test heartbeat and adjust timeout
  * Enable crystal
  * Adjust PWM based on battery voltage
  * Cap max PWM to 2/3 (assuming 36v input)
- * Comms heartbeat
- * Watchdog
+ * Watchdog reset indicator
  * Report estop state
+ * Nonfunctional modbus regs
  *
  * Analog array name improvement sample/samples
  * Nonvolatile storage
  */
 
 int main(void) {
+	uint32_t lastTicker = TimerGetTicker();  // Used to gate watchdog
 
     // Read clock settings and update SystemCoreClock variable
     SystemCoreClockUpdate();
+
+    // Configure watchdog
+    Chip_WWDT_Init(LPC_WWDT);
+    Chip_SYSCTL_PowerUp(SYSCTL_POWERDOWN_WDTOSC_PD);
+    Chip_Clock_SetWDTOSC(WDTLFO_OSC_1_05, 20);
+    Chip_Clock_SetWDTClockSource(SYSCTL_WDTCLKSRC_WDTOSC, 1);
+    Chip_WWDT_SetTimeOut(LPC_WWDT, (Chip_Clock_GetWDTOSCRate() / 4) * WATCHDOG_SECONDS);
+    Chip_WWDT_ClearStatusFlag(LPC_WWDT, WWDT_WDMOD_WDTOF);
+    Chip_WWDT_SetOption(LPC_WWDT, WWDT_WDMOD_WDRESET);
+    Chip_WWDT_Start(LPC_WWDT);
+    Chip_WWDT_Feed(LPC_WWDT);
 
     HardwareInit();
     TimerInit();
@@ -58,11 +72,14 @@ int main(void) {
     	CommsPoll();
     	ModbusPoll();
 
-    	// If comms heartbeat timer expires, MotorEStop();
+    	// Hit watchdog, gate on both interrupt and main loop time
+    	if (lastTicker != TimerGetTicker()) {
+    		Chip_WWDT_Feed(LPC_WWDT);
+    		lastTicker = TimerGetTicker();
+    	}
 
-    	// hit watchdog
+    	// wait for interrupt __WFI();
 
-    	//__WFI();
     }
 
     return(0);

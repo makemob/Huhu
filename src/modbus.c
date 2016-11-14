@@ -183,6 +183,9 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 	case MB_OUTWARD_ENDSTOP_COUNT:
 		response = MotorGetOutwardEndstops();
 		break;
+	case MB_HEARTBEAT_EXPIRIES:
+		response = MotorGetHeartbeatExpiries();
+		break;
 	//case MB_ESTOP:
 		//
 	//	break;
@@ -218,6 +221,9 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 	case MB_MAX_CURRENT_LIMIT_INWARD:
 		break;
 	case MB_MAX_CURRENT_LIMIT_OUTWARD:
+		break;
+	case MB_HEARTBEAT_TIMEOUT:
+		response = MotorGetHeartbeatTimeout();
 		break;
 	default:
 		break;
@@ -333,6 +339,8 @@ static void processHoldingRegChange(uint16_t index, uint16_t value) {
 	//	break;
 	//case MB_OUTWARD_ENDSTOP_COUNT:
 	//	break;
+	//case MB_HEARTBEAT_EXPIRIES:
+	//  break;
 
 //	case MB_UNLOCK_CONFIG:    // Write 0xA0A0 to unlock regs, anything else to lock
 //		break;
@@ -350,6 +358,9 @@ static void processHoldingRegChange(uint16_t index, uint16_t value) {
 //		break;
 //	case MB_MAX_CURRENT_LIMIT_OUTWARD:
 //		break;
+	case MB_HEARTBEAT_TIMEOUT:
+		MotorSetHeartbeatTimeout(value);
+		break;
 	default:
 		break;
 	}
@@ -412,6 +423,9 @@ static void receivePacket(uint8_t byteCount) {
 				uint8_t index;
 				uint8_t address;
 				uint16_t crc16;
+
+				// valid message to this address received, send heartbeat to motor drive
+				MotorNotifyHeartbeat();
 
 				// broadcasting is not supported for function 3
 				if (!broadcastFlag && (function == 3))

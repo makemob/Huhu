@@ -101,7 +101,36 @@ uint16_t ADCGetTemperature(void) {
 
 uint16_t ADCGetBattVoltage(void) {
 
-	return (((uint32_t)getAverage(SAMPLE_ADC_BATT_V) * 10000) / 235);
+	/* Using R:
+	v <- data.frame(volts = c(15, 17, 19, 21, 23, 25, 27, 30), adc = c(349, 388, 423, 452, 477, 498, 516, 539))
+	v$volts <- v$volts * 1000  # mV
+	v$adc2 <- v$adc ^ 2
+	summary(lm(formula = v$volts ~ v$adc + v$adc2))
+
+	Call:
+	lm(formula = v$volts ~ v$adc + v$adc2)
+
+	Residuals:
+		  1       2       3       4       5       6       7       8
+	-169.89  213.50  155.38   14.89 -146.92 -189.35 -104.61  227.00
+
+	Coefficients:
+				  Estimate Std. Error t value Pr(>|t|)
+	(Intercept)  3.246e+04  4.303e+03   7.543 0.000649 ***
+	v$adc       -1.314e+02  1.961e+01  -6.698 0.001122 **
+	v$adc2       2.345e-01  2.201e-02  10.651 0.000126 ***
+	---
+	Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+	Residual standard error: 209.2 on 5 degrees of freedom
+	Multiple R-squared:  0.9988,	Adjusted R-squared:  0.9983
+	F-statistic:  2088 on 2 and 5 DF,  p-value: 4.947e-08
+
+	*/
+
+	uint32_t adc = getAverage(SAMPLE_ADC_BATT_V);
+	return((uint16_t)(((2345 * adc * adc) / 10000) - 131 * adc + 32460));
+
 }
 
 uint16_t ADCGetBridgeCurrent(void) {
