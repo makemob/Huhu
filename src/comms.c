@@ -49,11 +49,11 @@ void UART_IRQHandler(void)
 	}
 }
 
-void CommsInit(void) {
+void CommsInit(uint32_t baud) {
 
 	/*** UART Init ***/
 	Chip_UART_Init(LPC_USART);
-	Chip_UART_SetBaud(LPC_USART, 9600);
+	Chip_UART_SetBaud(LPC_USART, baud);
 	// Chip_UART_SetRS485Flags(LPC_USART, (UART_RS485CTRL_DCTRL_EN | UART_RS485CTRL_OINV_1)); // Doesn't appear to work..
 	Chip_UART_ConfigData(LPC_USART, (UART_LCR_WLEN8 | UART_LCR_SBS_1BIT));
 	Chip_UART_SetupFIFOS(LPC_USART, (UART_FCR_FIFO_EN | UART_FCR_TRG_LEV2));

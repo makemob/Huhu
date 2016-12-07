@@ -10,7 +10,7 @@
 
 #include "chip.h"
 
-void CommsInit(void);
+void CommsInit(uint32_t baud);
 
 void CommsSendString(uint8_t* str);
 

@@ -73,9 +73,10 @@ typedef enum {
 	NUM_MODBUS_REGS
 } modbusRegMap_t;
 
-#define MODBUS_BAUD_RATE (9600)
+// Tested up to 57600
+#define MODBUS_BAUD_RATE (19200)
 
-#define MODBUS_SLAVE_ID (11)
+#define MODBUS_SLAVE_ID (4)
 
 uint16_t ModbusPoll(void);
 

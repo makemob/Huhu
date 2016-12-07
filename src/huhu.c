@@ -56,7 +56,7 @@ int main(void) {
     TimerInit();
     ADCInit();
     MotorInit();
-    CommsInit();
+    CommsInit(MODBUS_BAUD_RATE);
     ModbusInit(MODBUS_BAUD_RATE, MODBUS_SLAVE_ID, FALSE);
 
     TimerSetDurationMs(TIMER_TEST, 1000);

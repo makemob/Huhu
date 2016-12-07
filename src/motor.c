@@ -18,7 +18,7 @@
 
 #define MAX_BATT_VOLTAGE (40000)     // mV
 
-#define DEFAULT_HEARTBEAT_TIMEOUT (5)  // seconds between heartbeats before motor stops
+#define DEFAULT_HEARTBEAT_TIMEOUT (10)  // seconds between heartbeats before motor stops
 
 #define MIN_SPEED (10)    // %, set to ensure interrupt can trigger fast enough to maintain duty cycle
 #define MAX_SPEED (90)   // %, set to ensure HSD bootstrap capacitor remains charged
