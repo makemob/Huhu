@@ -73,19 +73,27 @@ void CommsInit(uint32_t baud) {
 
 void CommsSendString(uint8_t* str) {
 
-	if (Chip_UART_SendRB(LPC_USART, &txring, str, strlen(str))) {
-		// Assert tx enable
-		Chip_GPIO_SetPinOutHigh(LPC_GPIO, RS485_TX_EN_PORT, RS485_TX_EN_PIN);
-		Chip_GPIO_SetPinOutHigh(LPC_GPIO, GREEN_LED_PORT, GREEN_LED_PIN);
+	// Assert tx enable (needs to happen before tx triggered or start bit can be truncated)
+	Chip_GPIO_SetPinOutHigh(LPC_GPIO, RS485_TX_EN_PORT, RS485_TX_EN_PIN);
+	Chip_GPIO_SetPinOutHigh(LPC_GPIO, GREEN_LED_PORT, GREEN_LED_PIN);
+
+	if (!Chip_UART_SendRB(LPC_USART, &txring, str, strlen(str))) {
+		// Abort tx if buffer full, as packet will be corrupt
+		Chip_GPIO_SetPinOutLow(LPC_GPIO, RS485_TX_EN_PORT, RS485_TX_EN_PIN);
+		Chip_GPIO_SetPinOutLow(LPC_GPIO, GREEN_LED_PORT, GREEN_LED_PIN);
 	}
 }
 
 void CommsSendChars(uint8_t* str, uint8_t numChars) {
 
-	if (Chip_UART_SendRB(LPC_USART, &txring, str, numChars)) {
-		// Assert tx enable
-		Chip_GPIO_SetPinOutHigh(LPC_GPIO, RS485_TX_EN_PORT, RS485_TX_EN_PIN);
-		Chip_GPIO_SetPinOutHigh(LPC_GPIO, GREEN_LED_PORT, GREEN_LED_PIN);
+	// Assert tx enable (needs to happen before tx triggered or start bit can be truncated)
+	Chip_GPIO_SetPinOutHigh(LPC_GPIO, RS485_TX_EN_PORT, RS485_TX_EN_PIN);
+	Chip_GPIO_SetPinOutHigh(LPC_GPIO, GREEN_LED_PORT, GREEN_LED_PIN);
+
+	if (!Chip_UART_SendRB(LPC_USART, &txring, str, numChars)) {
+		// Abort tx if buffer full, as packet will be corrupt
+		Chip_GPIO_SetPinOutLow(LPC_GPIO, RS485_TX_EN_PORT, RS485_TX_EN_PIN);
+		Chip_GPIO_SetPinOutLow(LPC_GPIO, GREEN_LED_PORT, GREEN_LED_PIN);
 	}
 }
 
