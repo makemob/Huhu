@@ -56,4 +56,6 @@ uint32_t MotorGetPWMDuty(void);
 
 void MotorResetEStop(void);
 
+bool MotorGetEStopState(void);
+
 #endif /* MOTOR_H_ */

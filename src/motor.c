@@ -18,7 +18,7 @@
 
 #define MAX_BATT_VOLTAGE (40000)     // mV
 
-#define DEFAULT_HEARTBEAT_TIMEOUT (10)  // seconds between heartbeats before motor stops
+#define DEFAULT_HEARTBEAT_TIMEOUT (5)  // seconds between heartbeats before motor stops
 
 #define MIN_SPEED (10)    // %, set to ensure interrupt can trigger fast enough to maintain duty cycle
 #define MAX_SPEED (90)   // %, set to ensure HSD bootstrap capacitor remains charged
@@ -29,7 +29,7 @@
 #define ACCEL_PERIOD(percent) ((((100 - (percent)) * (MIN_ACCEL - E_STOP_ACCEL)) / 100) + E_STOP_ACCEL)
 
 // User facing acceleration set in % [0, 100]
-#define DEFAULT_ACCEL (95)   // % accel set on powerup
+#define DEFAULT_ACCEL (100)   // % accel set on powerup
 static uint8_t accelPercent = DEFAULT_ACCEL;
 static uint16_t accelPeriod = ACCEL_PERIOD(DEFAULT_ACCEL);
 
@@ -39,8 +39,9 @@ static uint32_t PWMDuty;
 static int8_t speedSetpoint = 0;  // % [-MAX_SPEED, MAX_SPEED]
 static int8_t speedActual = 0;    // % [-MAX_SPEED, MAX_SPEED]
 
-static bool isEStopping = false;
-static bool resetEStop = false;
+static bool isStopping = false;  // Motor is stopping for important reason (eg. microswitch)
+static bool isEStopping = false; // Motor is stopping for critical reason (eg. current limit), will need manual reset
+static bool resetEStop = false;  // Set when manual e-stop reset triggered
 
 static uint16_t currentLimitInward = DEFAULT_CURRENT_LIMIT;
 static uint16_t currentLimitOutward = DEFAULT_CURRENT_LIMIT;
@@ -163,10 +164,15 @@ void MotorInit(void) {
 	TimerSetDurationMs(TIMER_MOTOR_LED, 10 * (MAX_SPEED - speedSetpoint + 1));
 }
 
-void MotorEStop(void) {
+void MotorStop(void) {
 	speedSetpoint = 0;
 	accelPeriod = E_STOP_ACCEL;
 	TimerSetDurationMs(TIMER_MOTOR, accelPeriod);
+	isStopping = true;
+}
+
+void MotorEStop(void) {
+	MotorStop();
 	isEStopping = true;
 	resetEStop = false;
 }
@@ -180,7 +186,15 @@ void MotorPoll(void) {
 			resetEStop = false;
 			accelPeriod = ACCEL_PERIOD(DEFAULT_ACCEL);
 		}
+	} else if (isStopping) {
+		// Stopping is distinct from e-stopping.  In an e-stop recovery this will be called on the second poll
+		if (speedActual == 0) {
+			isStopping = false;
+			accelPeriod = ACCEL_PERIOD(DEFAULT_ACCEL);
+		}
 	} else {
+		// Check for reasons to stop the motor:
+
 		if (speedActual < 0) {
 			if (ADCGetBridgeCurrent() > currentLimitInward) {
 				MotorEStop();
@@ -198,12 +212,12 @@ void MotorPoll(void) {
 
 		// Actuator endstop microswitches stop movement
 		if ((speedActual < 0) && HardwareGetInwardEndstop()) {
-			MotorEStop();
+			MotorStop();
 			inwardEndstops++;
 		}
 
 		if ((speedActual > 0) && HardwareGetOutwardEndstop()) {
-			MotorEStop();
+			MotorStop();
 			outwardEndstops++;
 		}
 
@@ -321,7 +335,7 @@ void MotorPoll(void) {
 }
 
 void MotorSetSpeed(int8_t percent) {
-	if (!isEStopping && (percent >= -MAX_SPEED) && (percent <= MAX_SPEED)) {
+	if (!isStopping && (percent >= -MAX_SPEED) && (percent <= MAX_SPEED)) {
 		speedSetpoint = percent;
 	}
 }
@@ -335,7 +349,7 @@ int8_t MotorGetSpeed(void) {
 }
 
 void MotorSetAccel(uint8_t percent) {
-	if (!isEStopping && (percent >= 0) && (percent <= 100)) {
+	if (!isStopping && (percent >= 0) && (percent <= 100)) {
 		accelPercent = percent;
 		accelPeriod = ACCEL_PERIOD(percent);
 	}
@@ -413,4 +427,8 @@ uint32_t MotorGetPWMDuty(void) {
 
 void MotorResetEStop(void) {
 	resetEStop = true;
+}
+
+bool MotorGetEStopState(void) {
+	return (isEStopping);
 }

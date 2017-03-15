@@ -101,6 +101,7 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 		response = (uint16_t)(TimerGetUptimeSeconds() & 0xFFFF);
 		break;
 
+	// 100 block:
 	case MB_BRIDGE_CURRENT:
 		response = ADCGetBridgeCurrent();
 		break;
@@ -146,13 +147,10 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 	case MB_GREEN_LED:
 		response = Chip_GPIO_GetPinState(LPC_GPIO, GREEN_LED_PORT, GREEN_LED_PIN);
 		break;
-	case MB_INWARD_ENDSTOP_STATE:
-		response = HardwareGetInwardEndstop();
-		break;
-	case MB_OUTWARD_ENDSTOP_STATE:
-		response = HardwareGetOutwardEndstop();
-		break;
+	// MB_INWARD_ENDSTOP_STATE_DEPRECATED
+	// MB_OUTWARD_ENDSTOP_STATE_DEPRECATED
 
+	// 200 block:
 	case MB_MOTOR_SETPOINT:
 		response = (uint16_t)MotorGetSetpoint();
 		break;
@@ -168,24 +166,12 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 	case MB_CURRENT_LIMIT_OUTWARD:
 		response = MotorGetCurrentLimitOutward();
 		break;
-	case MB_CURRENT_TRIPS_INWARD:
-		response = MotorGetCurrentTripsInward();
-		break;
-	case MB_CURRENT_TRIPS_OUTWARD:
-		response = MotorGetCurrentTripsOutward();
-		break;
-	case MB_VOLTAGE_TRIPS:
-		response = MotorGetVoltageTrips();
-		break;
-	case MB_INWARD_ENDSTOP_COUNT:
-		response = MotorGetInwardEndstops();
-		break;
-	case MB_OUTWARD_ENDSTOP_COUNT:
-		response = MotorGetOutwardEndstops();
-		break;
-	case MB_HEARTBEAT_EXPIRIES:
-		response = MotorGetHeartbeatExpiries();
-		break;
+	// MB_CURRENT_TRIPS_INWARD_DEPRECATED
+	// MB_CURRENT_TRIPS_OUTWARD_DEPRECATED
+	// MB_VOLTAGE_TRIPS_DEPRECATED
+	// MB_INWARD_ENDSTOP_COUNT_DEPRECATED
+	// MB_OUTWARD_ENDSTOP_COUNT_DEPRECATED
+	// MB_HEARTBEAT_EXPIRIES_DEPRECATED
 	//case MB_ESTOP:
 		//
 	//	break;
@@ -205,6 +191,44 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 		response = (uint16_t)(MotorGetPWMDuty() & 0xFFFF);
 		break;
 
+	// 300 block:
+	case MB_ESTOP_STATE:
+		response = MotorGetEStopState();
+		break;
+	case MB_CURRENT_TRIPS_INWARD:
+	case MB_CURRENT_TRIPS_INWARD_DEPRECATED:
+		response = MotorGetCurrentTripsInward();
+		break;
+	case MB_CURRENT_TRIPS_OUTWARD:
+	case MB_CURRENT_TRIPS_OUTWARD_DEPRECATED:
+		response = MotorGetCurrentTripsOutward();
+		break;
+	case MB_INWARD_ENDSTOP_STATE:
+	case MB_INWARD_ENDSTOP_STATE_DEPRECATED:
+		response = HardwareGetInwardEndstop();
+		break;
+	case MB_OUTWARD_ENDSTOP_STATE:
+	case MB_OUTWARD_ENDSTOP_STATE_DEPRECATED:
+		response = HardwareGetOutwardEndstop();
+		break;
+	case MB_INWARD_ENDSTOP_COUNT:
+	case MB_INWARD_ENDSTOP_COUNT_DEPRECATED:
+			response = MotorGetInwardEndstops();
+			break;
+	case MB_OUTWARD_ENDSTOP_COUNT:
+	case MB_OUTWARD_ENDSTOP_COUNT_DEPRECATED:
+		response = MotorGetOutwardEndstops();
+		break;
+	case MB_VOLTAGE_TRIPS:
+	case MB_VOLTAGE_TRIPS_DEPRECATED:
+		response = MotorGetVoltageTrips();
+		break;
+	case MB_HEARTBEAT_EXPIRIES:
+	case MB_HEARTBEAT_EXPIRIES_DEPRECATED:
+		response = MotorGetHeartbeatExpiries();
+		break;
+
+	// 9000 block:
 	case MB_UNLOCK_CONFIG:    // Write 0xA0A0 to unlock regs, anything else to lock
 		break;
 	case MB_MODBUS_ADDRESS:
@@ -225,6 +249,7 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 	case MB_HEARTBEAT_TIMEOUT:
 		response = MotorGetHeartbeatTimeout();
 		break;
+
 	default:
 		break;
 }
@@ -420,7 +445,7 @@ static void receivePacket(uint8_t byteCount) {
 				uint16_t startingAddress = ((frame[2] << 8) | frame[3]); // combine the starting address bytes
 				uint16_t no_of_registers = ((frame[4] << 8) | frame[5]); // combine the number of register bytes
 				uint16_t maxData = startingAddress + no_of_registers;
-				uint8_t index;
+				uint16_t index;
 				uint8_t address;
 				uint16_t crc16;
 

@@ -28,8 +28,8 @@
  * Adjust PWM based on battery voltage
  * Cap max PWM to 2/3 (assuming 36v input)
  * Watchdog reset indicator
- * Report estop state
  * Nonfunctional modbus regs
+ * Remove deprecated modbus regs / rework map
  *
  * Analog array name improvement sample/samples
  * Nonvolatile storage
