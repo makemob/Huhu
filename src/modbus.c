@@ -551,7 +551,7 @@ static void receivePacket(uint8_t byteCount) {
 				errorCount++;
 		} // incorrect id
 	}
-	else if (byteCount > 0 && byteCount < 8)
+	else if (byteCount > 1 && byteCount < 8) // ignore byteCount == 1 packets, these can get triggered when switching to TX
 		errorCount++; // corrupted packet
 
 }
