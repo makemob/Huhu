@@ -59,6 +59,8 @@ static void checkDebouncer(Debouncer* db) {
 // Set up all the pins in one place so we can keep track of them
 void HardwareInit(void) {
 
+	uint16_t delay;
+
 	// H-Bridge
 	Chip_GPIO_SetPortDIR(LPC_GPIO, BRIDGE_1_PORT, (1 << BRIDGE_1_PIN), true);
 	Chip_GPIO_SetPortDIR(LPC_GPIO, BRIDGE_2_PORT, (1 << BRIDGE_2_PIN), true);
@@ -70,7 +72,7 @@ void HardwareInit(void) {
 
 	Chip_GPIO_SetPortDIR(LPC_GPIO, RS485_TX_EN_PORT, (1 << RS485_TX_EN_PIN), true);  // 485 TX EN
 
-	Chip_IOCON_PinMuxSet(LPC_IOCON, UART_RX_PIN, (IOCON_FUNC1 | IOCON_MODE_INACT)); // UART RXD
+	Chip_IOCON_PinMuxSet(LPC_IOCON, UART_RX_PIN, (IOCON_FUNC1 | IOCON_MODE_INACT | IOCON_MODE_PULLDOWN)); // UART RXD (without pulldown, MAX3485 can latch up)
 	Chip_IOCON_PinMuxSet(LPC_IOCON, UART_TX_PIN, (IOCON_FUNC1 | IOCON_MODE_INACT)); // UART TXD
 
 	// ADC (Caution: mode number differs pin to pin!)
@@ -82,6 +84,13 @@ void HardwareInit(void) {
 
 	startDebouncer(&inwardEndstopDebouncer, INWARD_ENDSTOP_PORT, INWARD_ENDSTOP_PIN, TIMER_INWARD_ENDSTOP_DEBOUNCE, DEBOUNCE_PERIOD);
 	startDebouncer(&outwardEndstopDebouncer, OUTWARD_ENDSTOP_PORT, OUTWARD_ENDSTOP_PIN, TIMER_OUTWARD_ENDSTOP_DEBOUNCE, DEBOUNCE_PERIOD);
+
+	// Flash blue LED as powerup/reboot indicator
+	Chip_GPIO_SetPinOutHigh(LPC_GPIO, BLUE_LED_PORT, BLUE_LED_PIN);
+	for (delay = 0; delay < 10000; delay++)
+		;
+	Chip_GPIO_SetPinOutLow(LPC_GPIO, BLUE_LED_PORT, BLUE_LED_PIN);
+
 }
 
 void HardwarePoll(void) {
