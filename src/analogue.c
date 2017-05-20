@@ -95,36 +95,93 @@ void ADCTakeSamples(void) {
 
 
 uint16_t ADCGetTemperature(void) {
+	/* Using R:
 
-	return(getAverage(SAMPLE_ADC_TEMPERATURE));
+	library(dplyr)
+	library(ggplot2)
+
+	r_bias <- 10000
+
+	# Lookup table from Vishay NTCS0805E3103JMT datasheet
+	ntc <- data.frame(temp = c(0, 10, 20, 30, 40, 50, 60, 70, 80),
+					  resistance = c(28829, 18515, 12205, 8240.3, 5686.6, 4004.2, 2872.3, 2095.9, 1553.8)) %>%
+	  mutate(ratio = resistance / (resistance + r_bias),
+			 adc_counts = 1024 * ratio,
+			 adc_counts2 = adc_counts ^ 2)
+
+	mod <- lm(formula = temp ~ adc_counts + adc_counts2, data = ntc)
+	summary(mod)
+
+	ntc$prediction <- predict(mod, newdata = ntc)
+
+	ggplot(ntc) + geom_line(aes(x = temp, y = adc_counts), color = 'blue') +
+	  geom_line(aes(x = prediction, y = adc_counts), color = 'red')
+
+
+	Call:
+	lm(formula = temp ~ adc_counts + adc_counts2, data = ntc)
+
+	Residuals:
+		Min      1Q  Median      3Q     Max
+	-1.9171 -1.7472 -0.3925  1.2336  2.6875
+
+	Coefficients:
+				  Estimate Std. Error t value Pr(>|t|)
+	(Intercept)  1.035e+02  3.216e+00  32.193 5.97e-08 ***
+	adc_counts  -2.028e-01  1.713e-02 -11.840 2.19e-05 ***
+	adc_counts2  9.066e-05  1.907e-05   4.754  0.00315 **
+	---
+	Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+	Residual standard error: 2.01 on 6 degrees of freedom
+	Multiple R-squared:  0.996,	Adjusted R-squared:  0.9946
+	F-statistic: 739.7 on 2 and 6 DF,  p-value: 6.59e-08
+ 	*/
+
+	uint32_t adc = getAverage(SAMPLE_ADC_TEMPERATURE);
+	return((uint16_t)((89923 - 123 * adc) / 1000));
 }
 
 uint16_t ADCGetBattVoltage(void) {
 
 	/* Using R:
-	v <- data.frame(volts = c(15, 17, 19, 21, 23, 25, 27, 30), adc = c(349, 388, 423, 452, 477, 498, 516, 539))
-	v$volts <- v$volts * 1000  # mV
-	v$adc2 <- v$adc ^ 2
-	summary(lm(formula = v$volts ~ v$adc + v$adc2))
 
-	Call:
-	lm(formula = v$volts ~ v$adc + v$adc2)
+		library(dplyr)
+		library(ggplot2)
 
-	Residuals:
-		  1       2       3       4       5       6       7       8
-	-169.89  213.50  155.38   14.89 -146.92 -189.35 -104.61  227.00
+		r_bias <- 10000
 
-	Coefficients:
-				  Estimate Std. Error t value Pr(>|t|)
-	(Intercept)  3.246e+04  4.303e+03   7.543 0.000649 ***
-	v$adc       -1.314e+02  1.961e+01  -6.698 0.001122 **
-	v$adc2       2.345e-01  2.201e-02  10.651 0.000126 ***
-	---
-	Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+		# Lookup table from Vishay NTCS0805E3103JMT datasheet
+		ntc <- data.frame(temp = c(0, 10, 20, 30, 40, 50, 60, 70, 80),
+						  resistance = c(28829, 18515, 12205, 8240.3, 5686.6, 4004.2, 2872.3, 2095.9, 1553.8)) %>%
+		  mutate(ratio = resistance / (resistance + r_bias),
+				 adc_counts = 1024 * ratio)
 
-	Residual standard error: 209.2 on 5 degrees of freedom
-	Multiple R-squared:  0.9988,	Adjusted R-squared:  0.9983
-	F-statistic:  2088 on 2 and 5 DF,  p-value: 4.947e-08
+		mod <- lm(formula = temp ~ adc_counts, data = ntc)
+		summary(mod)
+
+		ntc$prediction <- predict(mod, newdata = ntc)
+
+		ggplot(ntc) + geom_line(aes(x = temp, y = adc_counts), color = 'blue') +
+		  geom_line(aes(x = prediction, y = adc_counts), color = 'red')
+
+		Call:
+		lm(formula = temp ~ adc_counts, data = ntc)
+
+		Residuals:
+			Min      1Q  Median      3Q     Max
+		-4.3306 -3.1058 -0.7948  1.8692  6.9908
+
+		Coefficients:
+					 Estimate Std. Error t value Pr(>|t|)
+		(Intercept) 89.922922   2.970277   30.27 1.11e-08 ***
+		adc_counts  -0.122820   0.006504  -18.88 2.90e-07 ***
+		---
+		Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+		Residual standard error: 4.062 on 7 degrees of freedom
+		Multiple R-squared:  0.9807,	Adjusted R-squared:  0.978
+		F-statistic: 356.6 on 1 and 7 DF,  p-value: 2.903e-07
 
 	*/
 
