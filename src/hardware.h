@@ -52,8 +52,16 @@
 
 #define INWARD_ENDSTOP_PORT EXT_3_PORT  // Fully-in microswitch
 #define INWARD_ENDSTOP_PIN EXT_3_PIN
-#define OUTWARD_ENDSTOP_PORT EXT_4_PORT // Fully-out microswitch
-#define OUTWARD_ENDSTOP_PIN EXT_4_PIN
+#define OUTWARD_ENDSTOP_PORT EXT_1_PORT // Fully-out microswitch
+#define OUTWARD_ENDSTOP_PIN EXT_1_PIN
+#define POSITION_ENCODER_A_PORT EXT_4_PORT  // A channel of position encoder
+#define POSITION_ENCODER_A_PIN EXT_4_PIN
+#define POSITION_ENCODER_B_PORT EXT_2_PORT  // B channel of position encoder
+#define POSITION_ENCODER_B_PIN EXT_2_PIN
+#define POSITION_ENCODER_C_PORT EXT_3_PORT  // C channel of position encoder, shared with inward endstop microswitch
+#define POSITION_ENCODER_C_PIN EXT_3_PIN
+
+#define ENABLE_EXT_ADCS (FALSE)    // Set TRUE to use EXT_1 and EXT_2 as analog inputs
 
 #define TEMPERATURE_ADC ADC_CH0
 #define BATT_V_ADC      ADC_CH3
@@ -61,11 +69,14 @@
 #define EXT_1_ADC       ADC_CH2
 #define EXT_2_ADC       ADC_CH1
 
-#define TEMPERATURE_ADC_PIN IOCON_PIO0_11
-#define CURR_SENSE_ADC_PIN  IOCON_PIO1_4
-#define BATT_V_ADC_PIN      IOCON_PIO1_2
-#define EXT_1_ADC_PIN		IOCON_PIO1_1
-#define EXT_2_ADC_PIN		IOCON_PIO1_0
+#define TEMPERATURE_ADC_IOCON IOCON_PIO0_11
+#define CURR_SENSE_ADC_IOCON  IOCON_PIO1_4
+#define BATT_V_ADC_IOCON      IOCON_PIO1_2
+#define EXT_1_ADC_IOCON       IOCON_PIO1_1
+#define EXT_2_ADC_IOCON       IOCON_PIO1_0
+#define POSITION_ENCODER_A_IOCON IOCON_PIO0_2
+#define POSITION_ENCODER_B_IOCON IOCON_PIO1_0
+#define POSITION_ENCODER_C_IOCON IOCON_PIO0_6
 
 
 extern const uint8_t ScarabID[];
@@ -82,5 +93,13 @@ uint16_t HardwareGetMinBattVoltage(void);
 bool HardwareGetInwardEndstop(void);
 
 bool HardwareGetOutwardEndstop(void);
+
+int16_t HardwareGetPositionEncoderCounts(void);
+
+int16_t HardwareGetPositionEncoderDistance(void);  // tenths of a mm
+
+void HardwareZeroPositionEncoder(void);
+
+void HardwareSetPositionEncoderScaling(uint16_t countsPerTenthMillimetre);
 
 #endif /* HARDWARE_H_ */

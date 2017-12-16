@@ -149,6 +149,9 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 		break;
 	// MB_INWARD_ENDSTOP_STATE_DEPRECATED
 	// MB_OUTWARD_ENDSTOP_STATE_DEPRECATED
+	case MB_POSITION_ENCODER_COUNTS:
+		response = HardwareGetPositionEncoderCounts();
+		break;
 
 	// 200 block:
 	case MB_MOTOR_SETPOINT:
