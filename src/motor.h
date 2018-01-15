@@ -32,9 +32,21 @@ uint16_t MotorGetCurrentLimitInward(void);
 
 uint16_t MotorGetCurrentLimitOutward(void);
 
+void MotorSetExtensionLimitInward(int16_t limitTenthMillimetres);
+
+void MotorSetExtensionLimitOutward(int16_t limitTenthMillimetres);
+
+int16_t MotorGetExtensionLimitInward(void);
+
+int16_t MotorGetExtensionLimitOutward(void);
+
 uint16_t MotorGetCurrentTripsInward(void);
 
 uint16_t MotorGetCurrentTripsOutward(void);
+
+uint16_t MotorGetExtensionTripsInward(void);
+
+uint16_t MotorGetExtensionTripsOutward(void);
 
 uint16_t MotorGetVoltageTrips(void);
 

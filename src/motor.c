@@ -16,6 +16,11 @@
 #define DEFAULT_CURRENT_LIMIT (1500)  // mA
 #define MAX_CURRENT_LIMIT (8000)      // mA
 
+#define DEFAULT_EXTENSION_LIMIT_INWARD (-1000)  // tenths of a mm
+#define DEFAULT_EXTENSION_LIMIT_OUTWARD (10000) // tenths of a mm
+
+#define REQUIRE_CALIBRATED_EXTENSION (TRUE)    // whether we require calibration before allowing outward movement
+
 #define MAX_BATT_VOLTAGE (40000)     // mV
 
 #define DEFAULT_HEARTBEAT_TIMEOUT (5)  // seconds between heartbeats before motor stops
@@ -47,6 +52,11 @@ static uint16_t currentLimitInward = DEFAULT_CURRENT_LIMIT;
 static uint16_t currentLimitOutward = DEFAULT_CURRENT_LIMIT;
 static uint16_t currentTripsInward = 0;
 static uint16_t currentTripsOutward = 0;
+
+static int16_t extensionLimitInward = DEFAULT_EXTENSION_LIMIT_INWARD;
+static int16_t extensionLimitOutward = DEFAULT_EXTENSION_LIMIT_OUTWARD;
+static uint16_t extensionTripsInward = 0;
+static uint16_t extensionTripsOutward = 0;
 
 static uint16_t battVoltageTrips = 0;
 
@@ -179,6 +189,7 @@ void MotorEStop(void) {
 
 void MotorPoll(void) {
 	int8_t lastSpeedActual;
+	int16_t extension;
 
 	if (isEStopping) {
 		if (resetEStop && (speedActual == 0)) {
@@ -219,6 +230,20 @@ void MotorPoll(void) {
 		if ((speedActual > 0) && HardwareGetOutwardEndstop()) {
 			MotorStop();
 			outwardEndstops++;
+		}
+
+		// Stop if extension limits exceeded
+		extension = HardwareGetPositionEncoderDistance();
+		if (extension != POSITION_ENCODER_UNCALIBRATED) {
+			if ((speedActual < 0) && (extension < extensionLimitInward)) {
+				MotorEStop();
+				extensionTripsInward++;
+			}
+
+			if ((speedActual > 0) && (extension > extensionLimitOutward)) {
+				MotorEStop();
+				extensionTripsOutward++;
+			}
 		}
 
 		if(heartbeatTimeout && speedActual && TimerCheckExpired(TIMER_HEARTBEAT)) {
@@ -336,7 +361,10 @@ void MotorPoll(void) {
 
 void MotorSetSpeed(int8_t percent) {
 	if (!isStopping && (percent >= -MAX_SPEED) && (percent <= MAX_SPEED)) {
-		speedSetpoint = percent;
+		// Only allow inward movement until encoder is calibrated
+		if ((percent <= 0) || (HardwareGetPositionEncoderDistance() != POSITION_ENCODER_UNCALIBRATED) || !REQUIRE_CALIBRATED_EXTENSION) {
+			speedSetpoint = percent;
+		}
 	}
 }
 
@@ -379,12 +407,36 @@ uint16_t MotorGetCurrentLimitOutward(void) {
 	return (currentLimitOutward);
 }
 
+void MotorSetExtensionLimitInward(int16_t limitTenthMillimetres) {
+	extensionLimitInward = limitTenthMillimetres;
+}
+
+void MotorSetExtensionLimitOutward(int16_t limitTenthMillimetres) {
+	extensionLimitOutward = limitTenthMillimetres;
+}
+
+int16_t MotorGetExtensionLimitInward(void) {
+	return (extensionLimitInward);
+}
+
+int16_t MotorGetExtensionLimitOutward(void) {
+	return (extensionLimitOutward);
+}
+
 uint16_t MotorGetCurrentTripsInward(void) {
 	return (currentTripsInward);
 }
 
 uint16_t MotorGetCurrentTripsOutward(void) {
 	return (currentTripsOutward);
+}
+
+uint16_t MotorGetExtensionTripsInward(void) {
+	return (extensionTripsInward);
+}
+
+uint16_t MotorGetExtensionTripsOutward(void) {
+	return (extensionTripsOutward);
 }
 
 uint16_t MotorGetVoltageTrips(void) {

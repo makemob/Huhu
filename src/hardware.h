@@ -78,6 +78,7 @@
 #define POSITION_ENCODER_B_IOCON IOCON_PIO1_0
 #define POSITION_ENCODER_C_IOCON IOCON_PIO0_6
 
+#define POSITION_ENCODER_UNCALIBRATED (0x7FFF)   // Value to return when querying uncalibrated position encoder
 
 extern const uint8_t ScarabID[];
 
@@ -100,6 +101,8 @@ int16_t HardwareGetPositionEncoderDistance(void);  // tenths of a mm
 
 void HardwareZeroPositionEncoder(void);
 
-void HardwareSetPositionEncoderScaling(uint16_t countsPerTenthMillimetre);
+uint16_t HardwareGetPositionEncoderScaling(void);
+
+void HardwareSetPositionEncoderScaling(uint16_t tenthMillimetrePerCount);
 
 #endif /* HARDWARE_H_ */

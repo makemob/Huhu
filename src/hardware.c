@@ -15,9 +15,9 @@
 #include "timer.h"
 
 #define MICROSWITCH_DEBOUNCE_PERIOD (50)  // ms
-#define ENCODER_DEBOUNCE_PERIOD (35)       // ms
+#define ENCODER_DEBOUNCE_PERIOD (5)       // ms
 
-#define DEFAULT_POSITION_ENCODER_COUNTS_PER_TENTH_MM (10)
+#define DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT (10)
 
 #define POSITION_ENCODER_MUX_PERIOD (20)   // ms
 
@@ -42,8 +42,10 @@ static Debouncer positionEncoderBDebouncer;
 
 static int16_t positionEncoderCounts = 0;
 static bool lastPositionEncoderA = FALSE;
-static uint16_t positionEncoderCountsPerTenthMillimetre = DEFAULT_POSITION_ENCODER_COUNTS_PER_TENTH_MM;
-static bool positionEncoderMuxState = FALSE;
+static uint16_t positionEncoderTenthMillimetresPerCount = DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT;
+static bool positionEncoderMuxState;
+static bool isPositionEncoderCalibrated = FALSE;
+//static bool isPositionEncoderCalibrated = TRUE;   // DEBUG: Start in calibrated state
 
 static void startDebouncer(Debouncer* db, uint8_t port, uint8_t pin, TimerNum timer, uint8_t debouncePeriod) {
 	db->port = port;
@@ -73,6 +75,7 @@ static void checkDebouncer(Debouncer* db) {
 static void updateEncoderCounts(int16_t *counts, bool A, bool B, bool *lastA) {
 	// Note this ignores invalid state transfers (00 -> 11 and 11 -> 00), will glitch
 
+	// One pulse per detent
 	if (*lastA != A) {
 		*lastA = A;
 		if (A) {
@@ -81,6 +84,15 @@ static void updateEncoderCounts(int16_t *counts, bool A, bool B, bool *lastA) {
 			*counts += B ? 1 : -1;
 		}
 	}
+/*
+	// Two pulses per detent
+	if (*lastA != A) {
+		*lastA = A;
+		if (!A) {
+			*counts += B ? -1 : 1;
+		}
+	}
+*/
 }
 
 // Use pullups/downs to multiplex position encoder with inward endstop switch
@@ -141,12 +153,14 @@ void HardwareInit(void) {
 	Chip_IOCON_PinMuxSet(LPC_IOCON, EXT_2_ADC_IOCON, (IOCON_FUNC2 | IOCON_MODE_INACT | IOCON_ADMODE_EN));
 #endif
 
-	// Set up position encoder multiplexing
-	setPositionEncoderMux(positionEncoderMuxState);
-	TimerSetDurationMs(TIMER_POSITION_ENCODER_MUX, POSITION_ENCODER_MUX_PERIOD);
-
+	// Set up position encoder multiplexing:
+	setPositionEncoderMux(TRUE);  // Need to set mux state temporarily to ensure debouncer is correctly initialised
 	startDebouncer(&inwardEndstopDebouncer, INWARD_ENDSTOP_PORT, INWARD_ENDSTOP_PIN, TIMER_INWARD_ENDSTOP_DEBOUNCE, MICROSWITCH_DEBOUNCE_PERIOD);
 	startDebouncer(&outwardEndstopDebouncer, OUTWARD_ENDSTOP_PORT, OUTWARD_ENDSTOP_PIN, TIMER_OUTWARD_ENDSTOP_DEBOUNCE, MICROSWITCH_DEBOUNCE_PERIOD);
+
+	positionEncoderMuxState = FALSE;                 // Start with mux set to position encoder
+	setPositionEncoderMux(positionEncoderMuxState);
+	TimerSetDurationMs(TIMER_POSITION_ENCODER_MUX, POSITION_ENCODER_MUX_PERIOD);
 	startDebouncer(&positionEncoderADebouncer, POSITION_ENCODER_A_PORT, POSITION_ENCODER_A_PIN, TIMER_POSITION_ENCODER_A_DEBOUNCE, ENCODER_DEBOUNCE_PERIOD);
 	startDebouncer(&positionEncoderBDebouncer, POSITION_ENCODER_B_PORT, POSITION_ENCODER_B_PIN, TIMER_POSITION_ENCODER_B_DEBOUNCE, ENCODER_DEBOUNCE_PERIOD);
 
@@ -193,6 +207,7 @@ void HardwarePoll(void) {
 	// Reset position to zero when inward endstop switch detected
 	if (!inwardEndstopDebouncer.debouncedState) {  // active low input
 		positionEncoderCounts = 0;
+		isPositionEncoderCalibrated = TRUE;
 	}
 }
 
@@ -215,18 +230,30 @@ bool HardwareGetOutwardEndstop(void) {
 }
 
 int16_t HardwareGetPositionEncoderCounts(void) {
-	return(positionEncoderCounts);
+	if (!isPositionEncoderCalibrated) {
+		return(POSITION_ENCODER_UNCALIBRATED);
+	} else {
+		return(positionEncoderCounts);
+	}
 }
 
 // Get position encoder distance in tenths of a mm
 int16_t HardwareGetPositionEncoderDistance(void) {
-	return(positionEncoderCounts / positionEncoderCountsPerTenthMillimetre);
+	if (!isPositionEncoderCalibrated) {
+			return(POSITION_ENCODER_UNCALIBRATED);
+	} else {
+		return(positionEncoderCounts * positionEncoderTenthMillimetresPerCount);
+	}
 }
 
 void HardwareZeroPositionEncoder(void) {
 	positionEncoderCounts = 0;
 }
 
-void HardwareSetPositionEncoderScaling(uint16_t countsPerTenthMillimetre) {
-	positionEncoderCountsPerTenthMillimetre = countsPerTenthMillimetre;
+uint16_t HardwareGetPositionEncoderScaling(void) {
+	return(positionEncoderTenthMillimetresPerCount);
+}
+
+void HardwareSetPositionEncoderScaling(uint16_t tenthMillimetrePerCount) {
+	positionEncoderTenthMillimetresPerCount = tenthMillimetrePerCount;
 }
