@@ -19,6 +19,9 @@
 #define DEFAULT_EXTENSION_LIMIT_INWARD (-1000)  // tenths of a mm
 #define DEFAULT_EXTENSION_LIMIT_OUTWARD (10000) // tenths of a mm
 
+#define GOTO_POSITION_DISABLED (0x7FFF)
+#define DEFAULT_GOTO_SPEED_SETPOINT (30)       // %
+
 #define REQUIRE_CALIBRATED_EXTENSION (TRUE)    // whether we require calibration before allowing outward movement
 
 #define MAX_BATT_VOLTAGE (40000)     // mV
@@ -43,6 +46,10 @@ static uint32_t PWMDuty;
 
 static int8_t speedSetpoint = 0;  // % [-MAX_SPEED, MAX_SPEED]
 static int8_t speedActual = 0;    // % [-MAX_SPEED, MAX_SPEED]
+
+// Goto position command: Used to manually move actuator to a set position, at gotoSpeedSetpoint speed
+static int16_t gotoPosition = GOTO_POSITION_DISABLED;  // Go to this position (0.1mm units), at gotoSpeedSetpoint speed
+static uint8_t gotoSpeedSetpoint = DEFAULT_GOTO_SPEED_SETPOINT;   // Speed to run at when gotoPosition command received
 
 static bool isStopping = false;  // Motor is stopping for important reason (eg. microswitch)
 static bool isEStopping = false; // Motor is stopping for critical reason (eg. current limit), will need manual reset
@@ -179,6 +186,7 @@ void MotorStop(void) {
 	accelPeriod = E_STOP_ACCEL;
 	TimerSetDurationMs(TIMER_MOTOR, accelPeriod);
 	isStopping = true;
+	gotoPosition = GOTO_POSITION_DISABLED;
 }
 
 void MotorEStop(void) {
@@ -243,6 +251,13 @@ void MotorPoll(void) {
 			if ((speedActual > 0) && (extension > extensionLimitOutward)) {
 				MotorEStop();
 				extensionTripsOutward++;
+			}
+		}
+
+		// If goto position command active, stop when we have reached position
+		if (gotoPosition != GOTO_POSITION_DISABLED) {
+			if (((speedSetpoint > 0) && (extension >= gotoPosition)) || ((speedSetpoint < 0) && (extension <= gotoPosition))) {
+				MotorStop();
 			}
 		}
 
@@ -366,6 +381,38 @@ void MotorSetSpeed(int8_t percent) {
 			speedSetpoint = percent;
 		}
 	}
+}
+
+int16_t MotorGetGotoPosition(void) {
+	return (gotoPosition);
+}
+
+void MotorSetGotoPosition(int16_t position) {
+	int16_t extension = HardwareGetPositionEncoderDistance();
+
+	if (!isStopping && (extension != POSITION_ENCODER_UNCALIBRATED) && (position != extension) &&
+			(position >= extensionLimitInward) && (position <= extensionLimitOutward)) {
+
+		gotoPosition = position;
+
+		// Goto command runs at goto setpoint speed, but need to set direction
+		if (gotoPosition > extension) {
+			speedSetpoint = gotoSpeedSetpoint;  // positive direction
+		} else {
+			speedSetpoint = gotoSpeedSetpoint * -1;  // negative direction
+		}
+	}
+}
+
+void MotorSetGotoSpeedSetpoint(uint8_t speed) {
+	// Only speeds 1 - 100% valid.  Direction set when goto position command called
+	if ((speed > 0) && (speed <= 100)) {
+		gotoSpeedSetpoint = speed;
+	}
+}
+
+uint8_t MotorGetGotoSpeedSetpoint(void) {
+	return (gotoSpeedSetpoint);
 }
 
 int8_t MotorGetSetpoint(void) {

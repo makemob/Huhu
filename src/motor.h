@@ -24,6 +24,14 @@ void MotorSetAccel(uint8_t percent);
 
 uint8_t MotorGetAccel(void);
 
+int16_t MotorGetGotoPosition(void);
+
+void MotorSetGotoPosition(int16_t position);
+
+void MotorSetGotoSpeedSetpoint(uint8_t speed);
+
+uint8_t MotorGetGotoSpeedSetpoint(void);
+
 void MotorSetCurrentLimitInward(uint16_t limit);
 
 void MotorSetCurrentLimitOutward(uint16_t limit);
