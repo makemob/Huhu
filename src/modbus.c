@@ -149,6 +149,9 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 		break;
 	// MB_INWARD_ENDSTOP_STATE_DEPRECATED
 	// MB_OUTWARD_ENDSTOP_STATE_DEPRECATED
+	case MB_POSITION_ENCODER_COUNTS:
+		response = HardwareGetPositionEncoderCounts();
+		break;
 
 	// 200 block:
 	case MB_MOTOR_SETPOINT:
@@ -168,6 +171,15 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 		break;
 	// MB_CURRENT_TRIPS_INWARD_DEPRECATED
 	// MB_CURRENT_TRIPS_OUTWARD_DEPRECATED
+	case MB_EXTENSION_LIMIT_INWARD:
+		response = (uint16_t)MotorGetExtensionLimitInward();
+		break;
+	case MB_EXTENSION_LIMIT_OUTWARD:
+		response = (uint16_t)MotorGetExtensionLimitOutward();
+		break;
+	case MB_POSITION_ENCODER_SCALING:
+		response = HardwareGetPositionEncoderScaling();
+		break;
 	// MB_VOLTAGE_TRIPS_DEPRECATED
 	// MB_INWARD_ENDSTOP_COUNT_DEPRECATED
 	// MB_OUTWARD_ENDSTOP_COUNT_DEPRECATED
@@ -191,16 +203,24 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 		response = (uint16_t)(MotorGetPWMDuty() & 0xFFFF);
 		break;
 
+	case MB_GOTO_POSITION:
+		response = MotorGetGotoPosition();
+		break;
+	case MB_GOTO_SPEED_SETPOINT:
+		response = MotorGetGotoSpeedSetpoint();
+		break;
+
 	// 300 block:
+	case MB_EXTENSION:  // 299
+		response = (uint16_t)HardwareGetPositionEncoderDistance();
+		break;
 	case MB_ESTOP_STATE:
 		response = MotorGetEStopState();
 		break;
 	case MB_CURRENT_TRIPS_INWARD:
-	case MB_CURRENT_TRIPS_INWARD_DEPRECATED:
 		response = MotorGetCurrentTripsInward();
 		break;
 	case MB_CURRENT_TRIPS_OUTWARD:
-	case MB_CURRENT_TRIPS_OUTWARD_DEPRECATED:
 		response = MotorGetCurrentTripsOutward();
 		break;
 	case MB_INWARD_ENDSTOP_STATE:
@@ -220,12 +240,17 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 		response = MotorGetOutwardEndstops();
 		break;
 	case MB_VOLTAGE_TRIPS:
-	case MB_VOLTAGE_TRIPS_DEPRECATED:
 		response = MotorGetVoltageTrips();
 		break;
 	case MB_HEARTBEAT_EXPIRIES:
 	case MB_HEARTBEAT_EXPIRIES_DEPRECATED:
 		response = MotorGetHeartbeatExpiries();
+		break;
+	case MB_EXTENSION_TRIPS_INWARD:
+		response = MotorGetExtensionTripsInward();
+		break;
+	case MB_EXTENSION_TRIPS_OUTWARD:
+		response = MotorGetExtensionTripsOutward();
 		break;
 
 	// 9000 block:
@@ -338,11 +363,20 @@ static void processHoldingRegChange(uint16_t index, uint16_t value) {
 	case MB_CURRENT_LIMIT_OUTWARD:
 		MotorSetCurrentLimitOutward(value);
 		break;
-	//case MB_CURRENT_TRIPS_INWARD:
+	case MB_EXTENSION_LIMIT_INWARD:
+		MotorSetExtensionLimitInward(value);
+		break;
+	case MB_EXTENSION_LIMIT_OUTWARD:
+		MotorSetExtensionLimitOutward(value);
+		break;
+	case MB_POSITION_ENCODER_SCALING:
+		HardwareSetPositionEncoderScaling(value);
+		break;
+	//case MB_CURRENT_TRIPS_INWARD_DEPRECATED:
 	//	break;
-	//case MB_CURRENT_TRIPS_OUTWARD:
+	//case MB_CURRENT_TRIPS_OUTWARD_DEPRECATED:
 	//	break;
-	//case MB_VOLTAGE_TRIPS:
+	//case MB_VOLTAGE_TRIPS_DEPRECATED:
 	//	break;
 	case MB_ESTOP:
 		MotorEStop();
@@ -366,6 +400,12 @@ static void processHoldingRegChange(uint16_t index, uint16_t value) {
 	//	break;
 	//case MB_HEARTBEAT_EXPIRIES:
 	//  break;
+	case MB_GOTO_POSITION:
+		MotorSetGotoPosition(value);
+		break;
+	case MB_GOTO_SPEED_SETPOINT:
+		MotorSetGotoSpeedSetpoint(value);
+		break;
 
 //	case MB_UNLOCK_CONFIG:    // Write 0xA0A0 to unlock regs, anything else to lock
 //		break;

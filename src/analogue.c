@@ -22,17 +22,25 @@ typedef enum {
 	SAMPLE_ADC_TEMPERATURE = 0,
 	SAMPLE_ADC_BATT_V,
 	SAMPLE_ADC_CURR_SENSE,
+#if ENABLE_EXT_ADCS
 	SAMPLE_ADC_EXT_1,
 	SAMPLE_ADC_EXT_2,
+#endif
 	NUM_ADCS_TO_SAMPLE
 } ADCSampleIndex_t;
 
 // Map ADC channels to samples, must be in same order as ADCSampleIndex_t
+#if ENABLE_EXT_ADCS
 static const ADC_CHANNEL_T channelMap[NUM_ADCS_TO_SAMPLE] = {TEMPERATURE_ADC,
 															 BATT_V_ADC,
 															 CURR_SENSE_ADC,
 															 EXT_1_ADC,
 															 EXT_2_ADC};
+# else
+static const ADC_CHANNEL_T channelMap[NUM_ADCS_TO_SAMPLE] = {TEMPERATURE_ADC,
+															 BATT_V_ADC,
+															 CURR_SENSE_ADC};
+#endif
 
 static volatile ADCSample_t ADCSamples[NUM_ADCS_TO_SAMPLE];
 
@@ -64,8 +72,10 @@ void ADCInit(void) {
 	Chip_ADC_EnableChannel(LPC_ADC, TEMPERATURE_ADC, ENABLE);
 	Chip_ADC_EnableChannel(LPC_ADC, BATT_V_ADC, ENABLE);
 	Chip_ADC_EnableChannel(LPC_ADC, CURR_SENSE_ADC, ENABLE);
+#if ENABLE_EXT_ADCS
 	Chip_ADC_EnableChannel(LPC_ADC, EXT_1_ADC, ENABLE);
 	Chip_ADC_EnableChannel(LPC_ADC, EXT_2_ADC, ENABLE);
+#endif
 	Chip_ADC_SetBurstCmd(LPC_ADC, ENABLE);
 
 }
@@ -196,13 +206,19 @@ uint16_t ADCGetBridgeCurrent(void) {
 }
 
 uint16_t ADCGetExt1(void) {
-
+#if ENABLE_EXT_ADCS
 	return(getAverage(SAMPLE_ADC_EXT_1));
+#else
+	return(0xFFFF);
+#endif
 }
 
 uint16_t ADCGetExt2(void) {
-
+#if ENABLE_EXT_ADCS
 	return(getAverage(SAMPLE_ADC_EXT_2));
+#else
+	return(0xFFFF);
+#endif
 }
 
 bool ADCIsReady(void) {

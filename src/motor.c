@@ -16,6 +16,14 @@
 #define DEFAULT_CURRENT_LIMIT (1500)  // mA
 #define MAX_CURRENT_LIMIT (8000)      // mA
 
+#define DEFAULT_EXTENSION_LIMIT_INWARD (-1000)  // tenths of a mm
+#define DEFAULT_EXTENSION_LIMIT_OUTWARD (10000) // tenths of a mm
+
+#define GOTO_POSITION_DISABLED (0x7FFF)
+#define DEFAULT_GOTO_SPEED_SETPOINT (30)       // %
+
+#define REQUIRE_CALIBRATED_EXTENSION (TRUE)    // whether we require calibration before allowing outward movement
+
 #define MAX_BATT_VOLTAGE (40000)     // mV
 
 #define DEFAULT_HEARTBEAT_TIMEOUT (5)  // seconds between heartbeats before motor stops
@@ -39,6 +47,10 @@ static uint32_t PWMDuty;
 static int8_t speedSetpoint = 0;  // % [-MAX_SPEED, MAX_SPEED]
 static int8_t speedActual = 0;    // % [-MAX_SPEED, MAX_SPEED]
 
+// Goto position command: Used to manually move actuator to a set position, at gotoSpeedSetpoint speed
+static int16_t gotoPosition = GOTO_POSITION_DISABLED;  // Go to this position (0.1mm units), at gotoSpeedSetpoint speed
+static uint8_t gotoSpeedSetpoint = DEFAULT_GOTO_SPEED_SETPOINT;   // Speed to run at when gotoPosition command received
+
 static bool isStopping = false;  // Motor is stopping for important reason (eg. microswitch)
 static bool isEStopping = false; // Motor is stopping for critical reason (eg. current limit), will need manual reset
 static bool resetEStop = false;  // Set when manual e-stop reset triggered
@@ -47,6 +59,11 @@ static uint16_t currentLimitInward = DEFAULT_CURRENT_LIMIT;
 static uint16_t currentLimitOutward = DEFAULT_CURRENT_LIMIT;
 static uint16_t currentTripsInward = 0;
 static uint16_t currentTripsOutward = 0;
+
+static int16_t extensionLimitInward = DEFAULT_EXTENSION_LIMIT_INWARD;
+static int16_t extensionLimitOutward = DEFAULT_EXTENSION_LIMIT_OUTWARD;
+static uint16_t extensionTripsInward = 0;
+static uint16_t extensionTripsOutward = 0;
 
 static uint16_t battVoltageTrips = 0;
 
@@ -169,6 +186,7 @@ void MotorStop(void) {
 	accelPeriod = E_STOP_ACCEL;
 	TimerSetDurationMs(TIMER_MOTOR, accelPeriod);
 	isStopping = true;
+	gotoPosition = GOTO_POSITION_DISABLED;
 }
 
 void MotorEStop(void) {
@@ -179,6 +197,7 @@ void MotorEStop(void) {
 
 void MotorPoll(void) {
 	int8_t lastSpeedActual;
+	int16_t extension;
 
 	if (isEStopping) {
 		if (resetEStop && (speedActual == 0)) {
@@ -219,6 +238,27 @@ void MotorPoll(void) {
 		if ((speedActual > 0) && HardwareGetOutwardEndstop()) {
 			MotorStop();
 			outwardEndstops++;
+		}
+
+		// Stop if extension limits exceeded
+		extension = HardwareGetPositionEncoderDistance();
+		if (extension != POSITION_ENCODER_UNCALIBRATED) {
+			if ((speedActual < 0) && (extension < extensionLimitInward)) {
+				MotorEStop();
+				extensionTripsInward++;
+			}
+
+			if ((speedActual > 0) && (extension > extensionLimitOutward)) {
+				MotorEStop();
+				extensionTripsOutward++;
+			}
+		}
+
+		// If goto position command active, stop when we have reached position
+		if (gotoPosition != GOTO_POSITION_DISABLED) {
+			if (((speedSetpoint > 0) && (extension >= gotoPosition)) || ((speedSetpoint < 0) && (extension <= gotoPosition))) {
+				MotorStop();
+			}
 		}
 
 		if(heartbeatTimeout && speedActual && TimerCheckExpired(TIMER_HEARTBEAT)) {
@@ -336,8 +376,47 @@ void MotorPoll(void) {
 
 void MotorSetSpeed(int8_t percent) {
 	if (!isStopping && (percent >= -MAX_SPEED) && (percent <= MAX_SPEED)) {
-		speedSetpoint = percent;
+		// Only allow inward movement until encoder is calibrated (if required)
+		if ((percent <= 0) || (HardwareGetPositionEncoderDistance() != POSITION_ENCODER_UNCALIBRATED) ||
+				!HardwareIsPositionEncoderEnabled() || !REQUIRE_CALIBRATED_EXTENSION) {
+			speedSetpoint = percent;
+
+			// Any valid set speed command will cancel a goto position
+			gotoPosition = GOTO_POSITION_DISABLED;
+		}
 	}
+}
+
+int16_t MotorGetGotoPosition(void) {
+	return (gotoPosition);
+}
+
+void MotorSetGotoPosition(int16_t position) {
+	int16_t extension = HardwareGetPositionEncoderDistance();
+
+	if (!isStopping && (extension != POSITION_ENCODER_UNCALIBRATED) && HardwareIsPositionEncoderEnabled() &&
+			(position != extension) && (position >= extensionLimitInward) && (position <= extensionLimitOutward)) {
+
+		gotoPosition = position;
+
+		// Goto command runs at goto setpoint speed, but need to set direction
+		if (gotoPosition > extension) {
+			speedSetpoint = gotoSpeedSetpoint;  // positive direction
+		} else {
+			speedSetpoint = gotoSpeedSetpoint * -1;  // negative direction
+		}
+	}
+}
+
+void MotorSetGotoSpeedSetpoint(uint8_t speed) {
+	// Only speeds 1 - 100% valid.  Direction set when goto position command called
+	if ((speed > 0) && (speed <= 100)) {
+		gotoSpeedSetpoint = speed;
+	}
+}
+
+uint8_t MotorGetGotoSpeedSetpoint(void) {
+	return (gotoSpeedSetpoint);
 }
 
 int8_t MotorGetSetpoint(void) {
@@ -379,12 +458,36 @@ uint16_t MotorGetCurrentLimitOutward(void) {
 	return (currentLimitOutward);
 }
 
+void MotorSetExtensionLimitInward(int16_t limitTenthMillimetres) {
+	extensionLimitInward = limitTenthMillimetres;
+}
+
+void MotorSetExtensionLimitOutward(int16_t limitTenthMillimetres) {
+	extensionLimitOutward = limitTenthMillimetres;
+}
+
+int16_t MotorGetExtensionLimitInward(void) {
+	return (extensionLimitInward);
+}
+
+int16_t MotorGetExtensionLimitOutward(void) {
+	return (extensionLimitOutward);
+}
+
 uint16_t MotorGetCurrentTripsInward(void) {
 	return (currentTripsInward);
 }
 
 uint16_t MotorGetCurrentTripsOutward(void) {
 	return (currentTripsOutward);
+}
+
+uint16_t MotorGetExtensionTripsInward(void) {
+	return (extensionTripsInward);
+}
+
+uint16_t MotorGetExtensionTripsOutward(void) {
+	return (extensionTripsOutward);
 }
 
 uint16_t MotorGetVoltageTrips(void) {

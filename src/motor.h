@@ -24,6 +24,14 @@ void MotorSetAccel(uint8_t percent);
 
 uint8_t MotorGetAccel(void);
 
+int16_t MotorGetGotoPosition(void);
+
+void MotorSetGotoPosition(int16_t position);
+
+void MotorSetGotoSpeedSetpoint(uint8_t speed);
+
+uint8_t MotorGetGotoSpeedSetpoint(void);
+
 void MotorSetCurrentLimitInward(uint16_t limit);
 
 void MotorSetCurrentLimitOutward(uint16_t limit);
@@ -32,9 +40,21 @@ uint16_t MotorGetCurrentLimitInward(void);
 
 uint16_t MotorGetCurrentLimitOutward(void);
 
+void MotorSetExtensionLimitInward(int16_t limitTenthMillimetres);
+
+void MotorSetExtensionLimitOutward(int16_t limitTenthMillimetres);
+
+int16_t MotorGetExtensionLimitInward(void);
+
+int16_t MotorGetExtensionLimitOutward(void);
+
 uint16_t MotorGetCurrentTripsInward(void);
 
 uint16_t MotorGetCurrentTripsOutward(void);
+
+uint16_t MotorGetExtensionTripsInward(void);
+
+uint16_t MotorGetExtensionTripsOutward(void);
 
 uint16_t MotorGetVoltageTrips(void);
 

@@ -52,8 +52,8 @@ int main(void) {
     Chip_WWDT_Start(LPC_WWDT);
     Chip_WWDT_Feed(LPC_WWDT);
 
-    HardwareInit();
     TimerInit();
+    HardwareInit();
     ADCInit();
     MotorInit();
     CommsInit(MODBUS_BAUD_RATE);
