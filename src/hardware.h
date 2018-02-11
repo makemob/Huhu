@@ -105,4 +105,6 @@ uint16_t HardwareGetPositionEncoderScaling(void);
 
 void HardwareSetPositionEncoderScaling(uint16_t tenthMillimetrePerCount);
 
+bool HardwareIsPositionEncoderEnabled(void);
+
 #endif /* HARDWARE_H_ */

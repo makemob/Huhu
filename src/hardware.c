@@ -17,9 +17,9 @@
 #define MICROSWITCH_DEBOUNCE_PERIOD (50)  // ms
 #define ENCODER_DEBOUNCE_PERIOD (5)       // ms
 
-#define DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT (10)
+#define DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT (0)  // (16)  // Set to zero to disable encoder by default
 
-#define POSITION_ENCODER_MUX_PERIOD (20)   // ms
+#define POSITION_ENCODER_MUX_PERIOD (20)   // ms.  Long enough to let input cap charge, short enough to catch all transitions
 
 typedef struct {
 	bool lastState;
@@ -42,7 +42,7 @@ static Debouncer positionEncoderBDebouncer;
 
 static int16_t positionEncoderCounts = 0;
 static bool lastPositionEncoderA = FALSE;
-static uint16_t positionEncoderTenthMillimetresPerCount = DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT;
+static uint16_t positionEncoderTenthMillimetresPerCount = DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT;  // Set to zero to disable encoder
 static bool positionEncoderMuxState;
 static bool isPositionEncoderCalibrated = FALSE;
 //static bool isPositionEncoderCalibrated = TRUE;   // DEBUG: Start in calibrated state
@@ -154,15 +154,17 @@ void HardwareInit(void) {
 #endif
 
 	// Set up position encoder multiplexing:
-	setPositionEncoderMux(TRUE);  // Need to set mux state temporarily to ensure debouncer is correctly initialised
-	startDebouncer(&inwardEndstopDebouncer, INWARD_ENDSTOP_PORT, INWARD_ENDSTOP_PIN, TIMER_INWARD_ENDSTOP_DEBOUNCE, MICROSWITCH_DEBOUNCE_PERIOD);
-	startDebouncer(&outwardEndstopDebouncer, OUTWARD_ENDSTOP_PORT, OUTWARD_ENDSTOP_PIN, TIMER_OUTWARD_ENDSTOP_DEBOUNCE, MICROSWITCH_DEBOUNCE_PERIOD);
-
-	positionEncoderMuxState = FALSE;                 // Start with mux set to position encoder
-	setPositionEncoderMux(positionEncoderMuxState);
-	TimerSetDurationMs(TIMER_POSITION_ENCODER_MUX, POSITION_ENCODER_MUX_PERIOD);
+	setPositionEncoderMux(FALSE);  // Need to set mux state temporarily to ensure debouncers are correctly initialised
 	startDebouncer(&positionEncoderADebouncer, POSITION_ENCODER_A_PORT, POSITION_ENCODER_A_PIN, TIMER_POSITION_ENCODER_A_DEBOUNCE, ENCODER_DEBOUNCE_PERIOD);
 	startDebouncer(&positionEncoderBDebouncer, POSITION_ENCODER_B_PORT, POSITION_ENCODER_B_PIN, TIMER_POSITION_ENCODER_B_DEBOUNCE, ENCODER_DEBOUNCE_PERIOD);
+
+	positionEncoderMuxState = TRUE;                 // Start with mux set to limit switches
+	setPositionEncoderMux(positionEncoderMuxState);
+	for (delay = 0; delay < 60000; delay++)         // Spin to allow pin voltage to stabilise
+		;
+	TimerSetDurationMs(TIMER_POSITION_ENCODER_MUX, POSITION_ENCODER_MUX_PERIOD);
+	startDebouncer(&inwardEndstopDebouncer, INWARD_ENDSTOP_PORT, INWARD_ENDSTOP_PIN, TIMER_INWARD_ENDSTOP_DEBOUNCE, MICROSWITCH_DEBOUNCE_PERIOD);
+	startDebouncer(&outwardEndstopDebouncer, OUTWARD_ENDSTOP_PORT, OUTWARD_ENDSTOP_PIN, TIMER_OUTWARD_ENDSTOP_DEBOUNCE, MICROSWITCH_DEBOUNCE_PERIOD);
 
 	// Flash blue LED as powerup/reboot indicator
 	Chip_GPIO_SetPinOutHigh(LPC_GPIO, BLUE_LED_PORT, BLUE_LED_PIN);
@@ -186,6 +188,7 @@ void HardwarePoll(void) {
 	checkDebouncer(&outwardEndstopDebouncer);
 
 	// Position encoder and inward endstop microswitch are multiplexed
+
 	if (TimerCheckExpired(TIMER_POSITION_ENCODER_MUX)) {
 		TimerSetDurationMs(TIMER_POSITION_ENCODER_MUX, POSITION_ENCODER_MUX_PERIOD);
 
@@ -199,10 +202,16 @@ void HardwarePoll(void) {
 			updateEncoderCounts(&positionEncoderCounts, positionEncoderADebouncer.debouncedState, positionEncoderBDebouncer.debouncedState, &lastPositionEncoderA);
 		}
 
-		// Toggle pullup/downs to mux encoder & inward endstop switch
-		positionEncoderMuxState = !positionEncoderMuxState;
+		if (positionEncoderTenthMillimetresPerCount > 0) {
+			// Toggle pullup/downs to mux encoder & inward endstop switch
+			positionEncoderMuxState = !positionEncoderMuxState;
+		} else {
+			// Set positionEncoderTenthMillimetresPerCount to zero to disable encoder (and multiplexing)
+			positionEncoderMuxState = TRUE;
+		}
 		setPositionEncoderMux(positionEncoderMuxState);
 	}
+
 
 	// Reset position to zero when inward endstop switch detected
 	if (!inwardEndstopDebouncer.debouncedState) {  // active low input
@@ -230,16 +239,12 @@ bool HardwareGetOutwardEndstop(void) {
 }
 
 int16_t HardwareGetPositionEncoderCounts(void) {
-	if (!isPositionEncoderCalibrated) {
-		return(POSITION_ENCODER_UNCALIBRATED);
-	} else {
-		return(positionEncoderCounts);
-	}
+	return(positionEncoderCounts);
 }
 
 // Get position encoder distance in tenths of a mm
 int16_t HardwareGetPositionEncoderDistance(void) {
-	if (!isPositionEncoderCalibrated) {
+	if (!isPositionEncoderCalibrated || (positionEncoderTenthMillimetresPerCount == 0)) {
 			return(POSITION_ENCODER_UNCALIBRATED);
 	} else {
 		return(positionEncoderCounts * positionEncoderTenthMillimetresPerCount);
@@ -255,5 +260,11 @@ uint16_t HardwareGetPositionEncoderScaling(void) {
 }
 
 void HardwareSetPositionEncoderScaling(uint16_t tenthMillimetrePerCount) {
+	// Set to zero to disable encoder
 	positionEncoderTenthMillimetresPerCount = tenthMillimetrePerCount;
+	isPositionEncoderCalibrated = FALSE;
+}
+
+bool HardwareIsPositionEncoderEnabled(void) {
+	return (positionEncoderTenthMillimetresPerCount > 0);
 }

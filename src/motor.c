@@ -376,9 +376,13 @@ void MotorPoll(void) {
 
 void MotorSetSpeed(int8_t percent) {
 	if (!isStopping && (percent >= -MAX_SPEED) && (percent <= MAX_SPEED)) {
-		// Only allow inward movement until encoder is calibrated
-		if ((percent <= 0) || (HardwareGetPositionEncoderDistance() != POSITION_ENCODER_UNCALIBRATED) || !REQUIRE_CALIBRATED_EXTENSION) {
+		// Only allow inward movement until encoder is calibrated (if required)
+		if ((percent <= 0) || (HardwareGetPositionEncoderDistance() != POSITION_ENCODER_UNCALIBRATED) ||
+				!HardwareIsPositionEncoderEnabled() || !REQUIRE_CALIBRATED_EXTENSION) {
 			speedSetpoint = percent;
+
+			// Any valid set speed command will cancel a goto position
+			gotoPosition = GOTO_POSITION_DISABLED;
 		}
 	}
 }
@@ -390,8 +394,8 @@ int16_t MotorGetGotoPosition(void) {
 void MotorSetGotoPosition(int16_t position) {
 	int16_t extension = HardwareGetPositionEncoderDistance();
 
-	if (!isStopping && (extension != POSITION_ENCODER_UNCALIBRATED) && (position != extension) &&
-			(position >= extensionLimitInward) && (position <= extensionLimitOutward)) {
+	if (!isStopping && (extension != POSITION_ENCODER_UNCALIBRATED) && HardwareIsPositionEncoderEnabled() &&
+			(position != extension) && (position >= extensionLimitInward) && (position <= extensionLimitOutward)) {
 
 		gotoPosition = position;
 
