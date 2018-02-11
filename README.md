@@ -5,6 +5,7 @@ Firmware to drive Scarab motor actuator board (http://github.com/makemob/scarab)
 - H-bridge motor control
 - Modbus interface
 - Stops motor on overcurrent (configurable), endstop microswitches, high battery voltage
+- Position control via quadrature encoder (multiplexed with endstop microswitch)
 
 Designed to drive Linak LA-35 linear actuators for the MakeMob UKI - Utility Kinetic Insect project http://makemob.net/portfolio_page/uki-electric-insect-vehicle/
 
