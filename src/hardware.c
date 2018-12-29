@@ -18,7 +18,7 @@
 #define ENCODER_DEBOUNCE_PERIOD (5)       // ms
 
 #define DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT (16)  // Set to zero to disable encoder by default
-#define POSITION_ENCODER_DIRECTION (-1)   // 1 = clockwise extend, -1 = anticlockwise extend
+#define POSITION_ENCODER_DIRECTION (1)   // 1 = counterclockwise extend, -1 = clockwise extend
 
 #define POSITION_ENCODER_MUX_PERIOD (20)   // ms.  Long enough to let input cap charge, short enough to catch all transitions
 
