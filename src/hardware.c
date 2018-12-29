@@ -17,7 +17,8 @@
 #define MICROSWITCH_DEBOUNCE_PERIOD (50)  // ms
 #define ENCODER_DEBOUNCE_PERIOD (5)       // ms
 
-#define DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT (0)  // (16)  // Set to zero to disable encoder by default
+#define DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT (16)  // Set to zero to disable encoder by default
+#define POSITION_ENCODER_DIRECTION (-1)   // 1 = clockwise extend, -1 = anticlockwise extend
 
 #define POSITION_ENCODER_MUX_PERIOD (20)   // ms.  Long enough to let input cap charge, short enough to catch all transitions
 
@@ -79,9 +80,9 @@ static void updateEncoderCounts(int16_t *counts, bool A, bool B, bool *lastA) {
 	if (*lastA != A) {
 		*lastA = A;
 		if (A) {
-			*counts += B ? -1 : 1;
+			*counts += B ? -POSITION_ENCODER_DIRECTION : POSITION_ENCODER_DIRECTION;
 		} else {
-			*counts += B ? 1 : -1;
+			*counts += B ? POSITION_ENCODER_DIRECTION : -POSITION_ENCODER_DIRECTION;
 		}
 	}
 /*
