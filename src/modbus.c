@@ -209,6 +209,7 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 	case MB_GOTO_SPEED_SETPOINT:
 		response = MotorGetGotoSpeedSetpoint();
 		break;
+	// MB_FORCE_CALIBRATE_ENCODER
 
 	// 300 block:
 	case MB_EXTENSION:  // 299
@@ -405,6 +406,11 @@ static void processHoldingRegChange(uint16_t index, uint16_t value) {
 		break;
 	case MB_GOTO_SPEED_SETPOINT:
 		MotorSetGotoSpeedSetpoint(value);
+		break;
+	case MB_FORCE_CALIBRATE_ENCODER:   // write 0xA0A0 to force encoder to calibrate to zero in current position
+		if (value == 0xA0A0) {
+			HardwareForceCalibrateEncoder();
+		}
 		break;
 
 //	case MB_UNLOCK_CONFIG:    // Write 0xA0A0 to unlock regs, anything else to lock

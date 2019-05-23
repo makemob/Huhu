@@ -47,6 +47,7 @@ static uint16_t positionEncoderTenthMillimetresPerCount = DEFAULT_POSITION_ENCOD
 static bool positionEncoderMuxState;
 static bool isPositionEncoderCalibrated = FALSE;
 //static bool isPositionEncoderCalibrated = TRUE;   // DEBUG: Start in calibrated state
+static bool forceCalibrateEncoder = FALSE;
 
 static void startDebouncer(Debouncer* db, uint8_t port, uint8_t pin, TimerNum timer, uint8_t debouncePeriod) {
 	db->port = port;
@@ -214,10 +215,11 @@ void HardwarePoll(void) {
 	}
 
 
-	// Reset position to zero when inward endstop switch detected
-	if (!inwardEndstopDebouncer.debouncedState) {  // active low input
+	// Reset position to zero when inward endstop switch detected, or when forced
+	if (!inwardEndstopDebouncer.debouncedState || forceCalibrateEncoder) {  // active low input
 		positionEncoderCounts = 0;
 		isPositionEncoderCalibrated = TRUE;
+		forceCalibrateEncoder = FALSE;
 	}
 }
 
@@ -268,4 +270,10 @@ void HardwareSetPositionEncoderScaling(uint16_t tenthMillimetrePerCount) {
 
 bool HardwareIsPositionEncoderEnabled(void) {
 	return (positionEncoderTenthMillimetresPerCount > 0);
+}
+
+void HardwareForceCalibrateEncoder(void) {
+	// Force the encoder to calibrate to zero in the current position
+	// Used to calibrate actuators that do not have endstop microswitches
+	forceCalibrateEncoder = TRUE;
 }

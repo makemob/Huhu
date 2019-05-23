@@ -60,6 +60,7 @@ typedef enum {
 
 	MB_GOTO_POSITION = 218,
 	MB_GOTO_SPEED_SETPOINT,
+	MB_FORCE_CALIBRATE_ENCODER, // write 0xA0A0 to force encoder to calibrate to zero in current position
 
 	MB_EXTENSION = 299,
 	MB_ESTOP_STATE = 300,
@@ -92,7 +93,7 @@ typedef enum {
 // Tested up to 57600
 #define MODBUS_BAUD_RATE (19200)
 
-#define MODBUS_SLAVE_ID (24)
+#define MODBUS_SLAVE_ID (25)
 
 uint16_t ModbusPoll(void);
 
