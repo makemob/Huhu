@@ -10,6 +10,7 @@
 #include "hardware.h"
 #include "timer.h"
 #include "analogue.h"
+#include "motor.h"
 
 #define PWM_HZ (20000)
 
@@ -56,6 +57,7 @@ static uint8_t gotoSpeedSetpoint = DEFAULT_GOTO_SPEED_SETPOINT;   // Speed to ru
 static bool isStopping = false;  // Motor is stopping for important reason (eg. microswitch)
 static bool isEStopping = false; // Motor is stopping for critical reason (eg. current limit), will need manual reset
 static bool resetEStop = false;  // Set when manual e-stop reset triggered
+static EStopReason_t EStopReason = NOT_ESTOPPED;
 
 static uint16_t currentLimitInward = DEFAULT_CURRENT_LIMIT;
 static uint16_t currentLimitOutward = DEFAULT_CURRENT_LIMIT;
@@ -195,10 +197,14 @@ void MotorStop(void) {
 	gotoPosition = GOTO_POSITION_DISABLED;
 }
 
-void MotorEStop(void) {
+void MotorEStop(EStopReason_t reason) {
 	MotorStop();
 	isEStopping = true;
 	resetEStop = false;
+	if (EStopReason == NOT_ESTOPPED) {
+		// Only update on the first trigger of EStop, otherwise can be overwritten by remote propagation
+		EStopReason = reason;
+	}
 }
 
 void MotorPoll(void) {
@@ -209,6 +215,7 @@ void MotorPoll(void) {
 	if (isEStopping) {
 		if (resetEStop && (speedActual == 0)) {
 			isEStopping = false;
+			EStopReason = NOT_ESTOPPED;
 			resetEStop = false;
 			accelPeriod = ACCEL_PERIOD(DEFAULT_ACCEL);
 		}
@@ -223,16 +230,16 @@ void MotorPoll(void) {
 
 		if (speedActual < 0) {
 			if (ADCGetBridgeCurrent() > currentLimitInward) {
-				MotorEStop();
+				MotorEStop(ESTOP_CURRENT_LIMIT_INWARD);
 				currentTripsInward++;
 			}
 		} else if (ADCGetBridgeCurrent() > currentLimitOutward) {
-			MotorEStop();
+			MotorEStop(ESTOP_CURRENT_LIMIT_OUTWARD);
 			currentTripsOutward++;
 		}
 
 		if (ADCGetBattVoltage() > MAX_BATT_VOLTAGE) {
-			MotorEStop();
+			MotorEStop(ESTOP_BATT_OVERVOLTAGE);
 			battVoltageTrips++;
 		}
 
@@ -251,12 +258,12 @@ void MotorPoll(void) {
 		extension = HardwareGetPositionEncoderDistance();
 		if (extension != POSITION_ENCODER_UNCALIBRATED) {
 			if ((speedActual < 0) && (extension < extensionLimitInward)) {
-				MotorEStop();
+				MotorEStop(ESTOP_EXTENSION_LIMIT_INWARD);
 				extensionTripsInward++;
 			}
 
 			if ((speedActual > 0) && (extension > extensionLimitOutward)) {
-				MotorEStop();
+				MotorEStop(ESTOP_EXTENSION_LIMIT_OUTWARD);
 				extensionTripsOutward++;
 			}
 		}
@@ -282,14 +289,14 @@ void MotorPoll(void) {
 			if (speedSetpoint != 0) {
 				if (encoderFailTimeout && TimerCheckExpired(TIMER_POSITION_ENCODER_FAIL)) {
 					// No pulses detected for x ms when actuator should be moving
-					MotorEStop();
+					MotorEStop(ESTOP_ENCODER_FAILURE);
 					encoderFailTrips++;
 				}
 			}
 		}
 
 		if(heartbeatTimeout && speedActual && TimerCheckExpired(TIMER_HEARTBEAT)) {
-			MotorEStop();
+			MotorEStop(ESTOP_HEARTBEAT_TIMEOUT);
 			heartbeatExpiries++;
 		}
 	}
@@ -581,6 +588,6 @@ void MotorResetEStop(void) {
 	resetEStop = true;
 }
 
-bool MotorGetEStopState(void) {
-	return (isEStopping);
+EStopReason_t MotorGetEStopState(void) {
+	return (EStopReason);
 }

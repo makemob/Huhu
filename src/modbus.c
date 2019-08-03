@@ -386,7 +386,7 @@ static void processHoldingRegChange(uint16_t index, uint16_t value) {
 	//case MB_VOLTAGE_TRIPS_DEPRECATED:
 	//	break;
 	case MB_ESTOP:
-		MotorEStop();
+		MotorEStop(ESTOP_REMOTE_COMMAND);
 		break;
 	case MB_RESET_ESTOP:    // Write 0x5050 to reset emergency stop
 		if (value == 0x5050) {

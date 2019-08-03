@@ -8,11 +8,23 @@
 #ifndef MOTOR_H_
 #define MOTOR_H_
 
+typedef enum {
+	NOT_ESTOPPED = 0,
+	ESTOP_REMOTE_COMMAND,
+	ESTOP_CURRENT_LIMIT_INWARD,
+	ESTOP_CURRENT_LIMIT_OUTWARD,
+	ESTOP_BATT_OVERVOLTAGE,
+	ESTOP_EXTENSION_LIMIT_INWARD,
+	ESTOP_EXTENSION_LIMIT_OUTWARD,
+	ESTOP_ENCODER_FAILURE,
+	ESTOP_HEARTBEAT_TIMEOUT
+} EStopReason_t;
+
 void MotorInit(void);
 
 void MotorSetSpeed(int8_t percent);
 
-void MotorEStop(void);
+void MotorEStop(EStopReason_t reason);
 
 void MotorPoll(void);
 
@@ -82,6 +94,6 @@ uint32_t MotorGetPWMDuty(void);
 
 void MotorResetEStop(void);
 
-bool MotorGetEStopState(void);
+EStopReason_t MotorGetEStopState(void);
 
 #endif /* MOTOR_H_ */

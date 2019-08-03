@@ -23,7 +23,6 @@
 #define WATCHDOG_SECONDS (2)  // approx
 
 /* TODO:
- * Test heartbeat and adjust timeout
  * Enable crystal
  * Adjust PWM based on battery voltage
  * Cap max PWM to 2/3 (assuming 36v input)
