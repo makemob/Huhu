@@ -74,6 +74,7 @@ typedef enum {
 	MB_HEARTBEAT_EXPIRIES,
 	MB_EXTENSION_TRIPS_INWARD,
 	MB_EXTENSION_TRIPS_OUTWARD,
+	MB_ENCODER_FAIL_TRIPS,
 
 	// Position info etc. = 400
 
@@ -86,6 +87,8 @@ typedef enum {
 	MB_MAX_CURRENT_LIMIT_INWARD,
 	MB_MAX_CURRENT_LIMIT_OUTWARD,
 	MB_HEARTBEAT_TIMEOUT,  // seconds until heartbeat timer trips
+	MB_ENCODER_FAIL_TIMEOUT,  // Max milliseconds between encoder pulses before timeout
+
 
 	NUM_MODBUS_REGS
 } modbusRegMap_t;
@@ -93,7 +96,7 @@ typedef enum {
 // Tested up to 57600
 #define MODBUS_BAUD_RATE (19200)
 
-#define MODBUS_SLAVE_ID (25)
+#define MODBUS_SLAVE_ID (6)
 
 uint16_t ModbusPoll(void);
 

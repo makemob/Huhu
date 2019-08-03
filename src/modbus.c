@@ -253,6 +253,9 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 	case MB_EXTENSION_TRIPS_OUTWARD:
 		response = MotorGetExtensionTripsOutward();
 		break;
+	case MB_ENCODER_FAIL_TRIPS:
+		response = MotorGetEncoderFailTrips();
+		break;
 
 	// 9000 block:
 	case MB_UNLOCK_CONFIG:    // Write 0xA0A0 to unlock regs, anything else to lock
@@ -274,6 +277,9 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 		break;
 	case MB_HEARTBEAT_TIMEOUT:
 		response = MotorGetHeartbeatTimeout();
+		break;
+	case MB_ENCODER_FAIL_TIMEOUT:
+		response = MotorGetEncoderFailTimeout();
 		break;
 
 	default:
@@ -431,6 +437,9 @@ static void processHoldingRegChange(uint16_t index, uint16_t value) {
 //		break;
 	case MB_HEARTBEAT_TIMEOUT:
 		MotorSetHeartbeatTimeout(value);
+		break;
+	case MB_ENCODER_FAIL_TIMEOUT:
+		MotorSetEncoderFailTimeout(value);
 		break;
 	default:
 		break;

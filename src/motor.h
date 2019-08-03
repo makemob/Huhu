@@ -62,6 +62,8 @@ uint16_t MotorGetInwardEndstops(void);
 
 uint16_t MotorGetOutwardEndstops(void);
 
+uint16_t MotorGetEncoderFailTrips(void);
+
 void MotorNotifyHeartbeat(void);
 
 uint16_t MotorGetHeartbeatExpiries(void);
@@ -69,6 +71,10 @@ uint16_t MotorGetHeartbeatExpiries(void);
 void MotorSetHeartbeatTimeout(uint16_t seconds);
 
 uint16_t MotorGetHeartbeatTimeout(void);
+
+void MotorSetEncoderFailTimeout(uint16_t milliseconds);
+
+uint16_t MotorGetEncoderFailTimeout(void);
 
 uint32_t MotorGetPWMPeriod(void);
 

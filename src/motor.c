@@ -28,6 +28,8 @@
 
 #define DEFAULT_HEARTBEAT_TIMEOUT (5)  // seconds between heartbeats before motor stops
 
+#define DEFAULT_ENCODER_FAIL_TIMEOUT (5000)  // Max ms between encoder pulses when motor moving
+
 #define MIN_SPEED (10)    // %, set to ensure interrupt can trigger fast enough to maintain duty cycle
 #define MAX_SPEED (90)   // %, set to ensure HSD bootstrap capacitor remains charged
 
@@ -64,6 +66,10 @@ static int16_t extensionLimitInward = DEFAULT_EXTENSION_LIMIT_INWARD;
 static int16_t extensionLimitOutward = DEFAULT_EXTENSION_LIMIT_OUTWARD;
 static uint16_t extensionTripsInward = 0;
 static uint16_t extensionTripsOutward = 0;
+
+static int16_t lastExtension = 0;
+static uint16_t encoderFailTrips = 0;
+static uint16_t encoderFailTimeout = DEFAULT_ENCODER_FAIL_TIMEOUT;  // ms, set to zero to disable
 
 static uint16_t battVoltageTrips = 0;
 
@@ -198,6 +204,7 @@ void MotorEStop(void) {
 void MotorPoll(void) {
 	int8_t lastSpeedActual;
 	int16_t extension;
+	uint16_t encoderResolution;
 
 	if (isEStopping) {
 		if (resetEStop && (speedActual == 0)) {
@@ -254,10 +261,30 @@ void MotorPoll(void) {
 			}
 		}
 
-		// If goto position command active, stop when we have reached position
+		// Keep an eye on encoder movement so we can detect failure
+		if (lastExtension != extension) {
+			TimerSetDurationMs(TIMER_POSITION_ENCODER_FAIL, encoderFailTimeout);
+			lastExtension = extension;
+		}
+
+		// If goto position command active, additional stop reasons apply
 		if (gotoPosition != GOTO_POSITION_DISABLED) {
-			if (((speedSetpoint > 0) && (extension >= gotoPosition)) || ((speedSetpoint < 0) && (extension <= gotoPosition))) {
+			// Stop when we have reached position, compare using encoder counts to avoid hunting
+			encoderResolution = HardwareGetPositionEncoderScaling();  // tenth mm per encoder count
+			if (((speedSetpoint > 0) && ((extension / encoderResolution) >= (gotoPosition / encoderResolution))) ||
+					((speedSetpoint < 0) && ((extension / encoderResolution) <= (gotoPosition / encoderResolution)))) {
+
 				MotorStop();
+			}
+
+			// EStop if it appears that the encoder has failed (eg. shaft has come loose, wire broken)
+			// Set timeout to zero to disable detection
+			if (speedSetpoint != 0) {
+				if (encoderFailTimeout && TimerCheckExpired(TIMER_POSITION_ENCODER_FAIL)) {
+					// No pulses detected for x ms when actuator should be moving
+					MotorEStop();
+					encoderFailTrips++;
+				}
 			}
 		}
 
@@ -393,9 +420,11 @@ int16_t MotorGetGotoPosition(void) {
 
 void MotorSetGotoPosition(int16_t position) {
 	int16_t extension = HardwareGetPositionEncoderDistance();
+	uint16_t encoderResolution = HardwareGetPositionEncoderScaling();  // tenth mm per encoder count
 
 	if (!isStopping && (extension != POSITION_ENCODER_UNCALIBRATED) && HardwareIsPositionEncoderEnabled() &&
-			(position != extension) && (position >= extensionLimitInward) && (position <= extensionLimitOutward)) {
+			((position / encoderResolution) != (extension / encoderResolution)) && // deadband around single encoder step, check with integer division
+			(position >= extensionLimitInward) && (position <= extensionLimitOutward)) {
 
 		gotoPosition = position;
 
@@ -404,6 +433,13 @@ void MotorSetGotoPosition(int16_t position) {
 			speedSetpoint = gotoSpeedSetpoint;  // positive direction
 		} else {
 			speedSetpoint = gotoSpeedSetpoint * -1;  // negative direction
+		}
+
+		// If we are stopped, need to ensure actuator has time to move before detecting encoder failure
+		if (speedActual == 0) {
+			TimerSetDurationMs(TIMER_POSITION_ENCODER_FAIL, encoderFailTimeout);
+			// Edge case: rapidly sending setpoint commands that oscillate between forward & reverse of the current position
+			//  can lead to encoder failure detection, as encoder never has time to move
 		}
 	}
 }
@@ -502,6 +538,10 @@ uint16_t MotorGetOutwardEndstops(void) {
 	return (outwardEndstops);
 }
 
+uint16_t MotorGetEncoderFailTrips(void) {
+	return (encoderFailTrips);
+}
+
 void MotorNotifyHeartbeat(void) {
 	if (heartbeatTimeout) {
 		TimerSetDurationMs(TIMER_HEARTBEAT, heartbeatTimeout * 1000);
@@ -518,6 +558,15 @@ void MotorSetHeartbeatTimeout(uint16_t seconds) {
 
 uint16_t MotorGetHeartbeatTimeout(void) {
 	return (heartbeatTimeout);
+}
+
+void MotorSetEncoderFailTimeout(uint16_t milliseconds) {
+	// Set to zero to disable fault detection
+	encoderFailTimeout = milliseconds;
+}
+
+uint16_t MotorGetEncoderFailTimeout(void) {
+	return (encoderFailTimeout);
 }
 
 uint32_t MotorGetPWMPeriod(void) {
