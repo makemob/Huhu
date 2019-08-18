@@ -29,7 +29,7 @@
 
 #define DEFAULT_HEARTBEAT_TIMEOUT (5)  // seconds between heartbeats before motor stops
 
-#define DEFAULT_ENCODER_FAIL_TIMEOUT (5000)  // Max ms between encoder pulses when motor moving
+#define DEFAULT_ENCODER_FAIL_TIMEOUT (7000)  // Max ms between encoder pulses when motor moving
 
 #define MIN_SPEED (10)    // %, set to ensure interrupt can trigger fast enough to maintain duty cycle
 #define MAX_SPEED (90)   // %, set to ensure HSD bootstrap capacitor remains charged
