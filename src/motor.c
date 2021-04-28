@@ -15,7 +15,7 @@
 #define PWM_HZ (20000)
 
 #define DEFAULT_CURRENT_LIMIT (1500)  // mA
-#define MAX_CURRENT_LIMIT (8000)      // mA
+#define MAX_CURRENT_LIMIT (20000)      // mA
 
 #define DEFAULT_EXTENSION_LIMIT_INWARD (-1000)  // tenths of a mm
 #define DEFAULT_EXTENSION_LIMIT_OUTWARD (10000) // tenths of a mm
@@ -26,6 +26,8 @@
 #define REQUIRE_CALIBRATED_EXTENSION (TRUE)    // whether we require calibration before allowing outward movement
 
 #define MAX_BATT_VOLTAGE (40000)     // mV
+
+#define DEFAULT_TEMPERATURE_LIMIT (70)         // deg C
 
 #define DEFAULT_HEARTBEAT_TIMEOUT (5)  // seconds between heartbeats before motor stops
 
@@ -73,7 +75,10 @@ static int16_t lastExtension = 0;
 static uint16_t encoderFailTrips = 0;
 static uint16_t encoderFailTimeout = DEFAULT_ENCODER_FAIL_TIMEOUT;  // ms, set to zero to disable
 
+static uint16_t temperatureLimit = DEFAULT_TEMPERATURE_LIMIT;   // deg C
+
 static uint16_t battVoltageTrips = 0;
+static uint16_t temperatureTrips = 0;
 
 static uint16_t inwardEndstops = 0;
 static uint16_t outwardEndstops = 0;
@@ -241,6 +246,11 @@ void MotorPoll(void) {
 		if (ADCGetBattVoltage() > MAX_BATT_VOLTAGE) {
 			MotorEStop(ESTOP_BATT_OVERVOLTAGE);
 			battVoltageTrips++;
+		}
+
+		if (ADCGetTemperature() > temperatureLimit) {
+			MotorEStop(ESTOP_OVERTEMPERATURE);
+			temperatureTrips++;
 		}
 
 		// Actuator endstop microswitches stop movement
@@ -549,6 +559,10 @@ uint16_t MotorGetEncoderFailTrips(void) {
 	return (encoderFailTrips);
 }
 
+uint16_t MotorGetTemperatureTrips(void) {
+	return (temperatureTrips);
+}
+
 void MotorNotifyHeartbeat(void) {
 	if (heartbeatTimeout) {
 		TimerSetDurationMs(TIMER_HEARTBEAT, heartbeatTimeout * 1000);
@@ -574,6 +588,14 @@ void MotorSetEncoderFailTimeout(uint16_t milliseconds) {
 
 uint16_t MotorGetEncoderFailTimeout(void) {
 	return (encoderFailTimeout);
+}
+
+void MotorSetTemperatureLimit(uint16_t degreesC) {
+	temperatureLimit = degreesC;
+}
+
+uint16_t MotorGetTemperatureLimit(void) {
+	return (temperatureLimit);
 }
 
 uint32_t MotorGetPWMPeriod(void) {

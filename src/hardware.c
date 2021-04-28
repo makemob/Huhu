@@ -15,12 +15,6 @@
 #include "timer.h"
 
 #define MICROSWITCH_DEBOUNCE_PERIOD (50)  // ms
-#define ENCODER_DEBOUNCE_PERIOD (5)       // ms
-
-#define DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT (16)  // Set to zero to disable encoder by default
-#define POSITION_ENCODER_DIRECTION (1)   // 1 = counterclockwise extend, -1 = clockwise extend
-
-#define POSITION_ENCODER_MUX_PERIOD (20)   // ms.  Long enough to let input cap charge, short enough to catch all transitions
 
 typedef struct {
 	bool lastState;
@@ -38,13 +32,28 @@ static uint16_t minBattVoltage = 0;
 
 static Debouncer inwardEndstopDebouncer;
 static Debouncer outwardEndstopDebouncer;
+
+#if (HW_TYPE == HW_TYPE_UKI)
+#define ENCODER_DEBOUNCE_PERIOD (5)       // ms
+
+#define POSITION_ENCODER_DIRECTION (1)   // 1 = counterclockwise extend, -1 = clockwise extend
+
+#define POSITION_ENCODER_MUX_PERIOD (20)   // ms.  Long enough to let input cap charge, short enough to catch all transitions
+
+#define DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT (16)  // Set to zero to disable encoder by default
+
 static Debouncer positionEncoderADebouncer;
 static Debouncer positionEncoderBDebouncer;
+static bool lastPositionEncoderA = FALSE;
+static bool positionEncoderMuxState;
+#elif (HW_TYPE == HW_TYPE_HELIOS)
+#define DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT (4)  // Set to zero to disable encoder by default
+
+static int16_t positionADCOffset = 0;
+#endif // HW_TYPE
 
 static int16_t positionEncoderCounts = 0;
-static bool lastPositionEncoderA = FALSE;
 static uint16_t positionEncoderTenthMillimetresPerCount = DEFAULT_POSITION_ENCODER_TENTH_MM_PER_COUNT;  // Set to zero to disable encoder
-static bool positionEncoderMuxState;
 static bool isPositionEncoderCalibrated = FALSE;
 //static bool isPositionEncoderCalibrated = TRUE;   // DEBUG: Start in calibrated state
 static bool forceCalibrateEncoder = FALSE;
@@ -72,6 +81,7 @@ static void checkDebouncer(Debouncer* db) {
 	db->lastState = currentState;
 }
 
+#if (HW_TYPE == HW_TYPE_UKI)
 // Process quadrature encoder state change
 // Assumes detent stable on 00 or 11, A dominant
 static void updateEncoderCounts(int16_t *counts, bool A, bool B, bool *lastA) {
@@ -126,6 +136,8 @@ static void setPositionEncoderMux(bool invert) {
 		Chip_IOCON_PinMuxSet(LPC_IOCON, POSITION_ENCODER_C_IOCON, (IOCON_FUNC0 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
 	}
 }
+#endif // HW_TYPE_UKI
+
 
 // Set up all the pins in one place so we can keep track of them
 void HardwareInit(void) {
@@ -150,11 +162,14 @@ void HardwareInit(void) {
 	Chip_IOCON_PinMuxSet(LPC_IOCON, TEMPERATURE_ADC_IOCON, (IOCON_FUNC2 | IOCON_MODE_INACT | IOCON_ADMODE_EN));
 	Chip_IOCON_PinMuxSet(LPC_IOCON, BATT_V_ADC_IOCON, (IOCON_FUNC2 | IOCON_MODE_INACT | IOCON_ADMODE_EN));
 	Chip_IOCON_PinMuxSet(LPC_IOCON, CURR_SENSE_ADC_IOCON, (IOCON_FUNC1 | IOCON_MODE_INACT | IOCON_ADMODE_EN));
-#if ENABLE_EXT_ADCS
-	Chip_IOCON_PinMuxSet(LPC_IOCON, EXT_1_ADC_IOCON, (IOCON_FUNC2 | IOCON_MODE_INACT | IOCON_ADMODE_EN));
-	Chip_IOCON_PinMuxSet(LPC_IOCON, EXT_2_ADC_IOCON, (IOCON_FUNC2 | IOCON_MODE_INACT | IOCON_ADMODE_EN));
+#ifdef ENABLE_EXT_1_ADC
+	Chip_IOCON_PinMuxSet(LPC_IOCON, EXT_1_IOCON, (IOCON_FUNC2 | IOCON_MODE_INACT | IOCON_ADMODE_EN));
+#endif
+#ifdef ENABLE_EXT_2_ADC
+	Chip_IOCON_PinMuxSet(LPC_IOCON, EXT_2_IOCON, (IOCON_FUNC2 | IOCON_MODE_INACT | IOCON_ADMODE_EN));
 #endif
 
+#if (HW_TYPE == HW_TYPE_UKI)
 	// Set up position encoder multiplexing:
 	setPositionEncoderMux(FALSE);  // Need to set mux state temporarily to ensure debouncers are correctly initialised
 	startDebouncer(&positionEncoderADebouncer, POSITION_ENCODER_A_PORT, POSITION_ENCODER_A_PIN, TIMER_POSITION_ENCODER_A_DEBOUNCE, ENCODER_DEBOUNCE_PERIOD);
@@ -165,6 +180,14 @@ void HardwareInit(void) {
 	for (delay = 0; delay < 60000; delay++)         // Spin to allow pin voltage to stabilise
 		;
 	TimerSetDurationMs(TIMER_POSITION_ENCODER_MUX, POSITION_ENCODER_MUX_PERIOD);
+#elif (HW_TYPE == HW_TYPE_HELIOS)
+	Chip_GPIO_SetPinDIRInput(LPC_GPIO, INWARD_ENDSTOP_PORT, INWARD_ENDSTOP_PIN);
+	Chip_GPIO_SetPinDIRInput(LPC_GPIO, OUTWARD_ENDSTOP_PORT, OUTWARD_ENDSTOP_PIN);
+
+	Chip_IOCON_PinMuxSet(LPC_IOCON, INWARD_ENDSTOP_IOCON, (IOCON_FUNC0 | IOCON_MODE_INACT));  // disable pullup
+	Chip_IOCON_PinMuxSet(LPC_IOCON, OUTWARD_ENDSTOP_IOCON, (IOCON_FUNC1 | IOCON_MODE_INACT | IOCON_DIGMODE_EN)); // disable pullup
+#endif // HW_TYPE
+
 	startDebouncer(&inwardEndstopDebouncer, INWARD_ENDSTOP_PORT, INWARD_ENDSTOP_PIN, TIMER_INWARD_ENDSTOP_DEBOUNCE, MICROSWITCH_DEBOUNCE_PERIOD);
 	startDebouncer(&outwardEndstopDebouncer, OUTWARD_ENDSTOP_PORT, OUTWARD_ENDSTOP_PIN, TIMER_OUTWARD_ENDSTOP_DEBOUNCE, MICROSWITCH_DEBOUNCE_PERIOD);
 
@@ -186,6 +209,7 @@ void HardwarePoll(void) {
 		minBattVoltage = volts;  // This might need a holdoff, ends up being zero
 	}
 
+#if (HW_TYPE == HW_TYPE_UKI)
 	// Check debounced inputs
 	checkDebouncer(&outwardEndstopDebouncer);
 
@@ -214,13 +238,36 @@ void HardwarePoll(void) {
 		setPositionEncoderMux(positionEncoderMuxState);
 	}
 
-
 	// Reset position to zero when inward endstop switch detected, or when forced
-	if (!inwardEndstopDebouncer.debouncedState || forceCalibrateEncoder) {  // active low input
+	if ((inwardEndstopDebouncer.debouncedState ^ INWARD_ENDSTOP_SENSE) || forceCalibrateEncoder) {
 		positionEncoderCounts = 0;
 		isPositionEncoderCalibrated = TRUE;
 		forceCalibrateEncoder = FALSE;
 	}
+
+#elif (HW_TYPE == HW_TYPE_HELIOS)
+	// Check debounced inputs
+	checkDebouncer(&inwardEndstopDebouncer);
+	checkDebouncer(&outwardEndstopDebouncer);
+
+	// Take analog position reading (ADC counts)
+	uint16_t reading;
+	if (POSITION_ADC == EXT_1_ADC) {
+		reading = (int16_t)ADCGetExt1();
+	} else if (POSITION_ADC == EXT_2_ADC) {
+		reading = (int16_t)ADCGetExt2();
+	}
+
+	// Reset position to zero when inward endstop switch detected, or when forced
+	if ((inwardEndstopDebouncer.debouncedState ^ INWARD_ENDSTOP_SENSE) || forceCalibrateEncoder) {
+		positionADCOffset = reading;
+		isPositionEncoderCalibrated = TRUE;
+		forceCalibrateEncoder = FALSE;
+	}
+
+	positionEncoderCounts = reading - positionADCOffset;
+#endif
+
 }
 
 uint16_t HardwareGetMaxBattVoltage(void) {
@@ -232,13 +279,11 @@ uint16_t HardwareGetMinBattVoltage(void) {
 }
 
 bool HardwareGetInwardEndstop(void) {
-	// Invert, active low input
-	return(!inwardEndstopDebouncer.debouncedState);
+	return(inwardEndstopDebouncer.debouncedState ^ INWARD_ENDSTOP_SENSE);
 }
 
 bool HardwareGetOutwardEndstop(void) {
-	// Invert, active low input
-	return(!outwardEndstopDebouncer.debouncedState);
+	return(outwardEndstopDebouncer.debouncedState ^ OUTWARD_ENDSTOP_SENSE);
 }
 
 int16_t HardwareGetPositionEncoderCounts(void) {

@@ -17,7 +17,8 @@ typedef enum {
 	ESTOP_EXTENSION_LIMIT_INWARD,
 	ESTOP_EXTENSION_LIMIT_OUTWARD,
 	ESTOP_ENCODER_FAILURE,
-	ESTOP_HEARTBEAT_TIMEOUT
+	ESTOP_HEARTBEAT_TIMEOUT,
+	ESTOP_OVERTEMPERATURE
 } EStopReason_t;
 
 void MotorInit(void);
@@ -76,6 +77,8 @@ uint16_t MotorGetOutwardEndstops(void);
 
 uint16_t MotorGetEncoderFailTrips(void);
 
+uint16_t MotorGetTemperatureTrips(void);
+
 void MotorNotifyHeartbeat(void);
 
 uint16_t MotorGetHeartbeatExpiries(void);
@@ -87,6 +90,10 @@ uint16_t MotorGetHeartbeatTimeout(void);
 void MotorSetEncoderFailTimeout(uint16_t milliseconds);
 
 uint16_t MotorGetEncoderFailTimeout(void);
+
+void MotorSetTemperatureLimit(uint16_t degreesC);
+
+uint16_t MotorGetTemperatureLimit(void);
 
 uint32_t MotorGetPWMPeriod(void);
 

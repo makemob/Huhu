@@ -57,8 +57,8 @@ typedef enum {
 	MB_INWARD_ENDSTOP_COUNT_DEPRECATED,
 	MB_OUTWARD_ENDSTOP_COUNT_DEPRECATED,
 	MB_HEARTBEAT_EXPIRIES_DEPRECATED,
-
-	MB_GOTO_POSITION = 218,
+	MB_TEMPERATURE_LIMIT,
+	MB_GOTO_POSITION,
 	MB_GOTO_SPEED_SETPOINT,
 	MB_FORCE_CALIBRATE_ENCODER, // write 0xA0A0 to force encoder to calibrate to zero in current position
 
@@ -75,6 +75,8 @@ typedef enum {
 	MB_EXTENSION_TRIPS_INWARD,
 	MB_EXTENSION_TRIPS_OUTWARD,
 	MB_ENCODER_FAIL_TRIPS,
+	MB_TEMPERATURE_TRIPS,
+
 
 	// Position info etc. = 400
 
@@ -96,7 +98,7 @@ typedef enum {
 // Tested up to 57600
 #define MODBUS_BAUD_RATE (19200)
 
-#define MODBUS_SLAVE_ID (6)
+#define MODBUS_SLAVE_ID (24)
 
 uint16_t ModbusPoll(void);
 

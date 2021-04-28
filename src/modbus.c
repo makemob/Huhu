@@ -202,7 +202,9 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 	case MB_MOTOR_PWM_DUTY_LSW:
 		response = (uint16_t)(MotorGetPWMDuty() & 0xFFFF);
 		break;
-
+	case MB_TEMPERATURE_LIMIT:
+		response = MotorGetTemperatureLimit();
+		break;
 	case MB_GOTO_POSITION:
 		response = MotorGetGotoPosition();
 		break;
@@ -255,6 +257,9 @@ static uint16_t fetchHoldingReg(uint16_t index) {
 		break;
 	case MB_ENCODER_FAIL_TRIPS:
 		response = MotorGetEncoderFailTrips();
+		break;
+	case MB_TEMPERATURE_TRIPS:
+		response = MotorGetTemperatureTrips();
 		break;
 
 	// 9000 block:
@@ -407,6 +412,9 @@ static void processHoldingRegChange(uint16_t index, uint16_t value) {
 	//	break;
 	//case MB_HEARTBEAT_EXPIRIES:
 	//  break;
+	case MB_TEMPERATURE_LIMIT:
+		MotorSetTemperatureLimit(value);
+		break;
 	case MB_GOTO_POSITION:
 		MotorSetGotoPosition(value);
 		break;

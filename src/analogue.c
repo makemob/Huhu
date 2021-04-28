@@ -22,25 +22,36 @@ typedef enum {
 	SAMPLE_ADC_TEMPERATURE = 0,
 	SAMPLE_ADC_BATT_V,
 	SAMPLE_ADC_CURR_SENSE,
-#if ENABLE_EXT_ADCS
+#ifdef ENABLE_EXT_1_ADC
 	SAMPLE_ADC_EXT_1,
+#endif
+#ifdef ENABLE_EXT_2_ADC
 	SAMPLE_ADC_EXT_2,
 #endif
 	NUM_ADCS_TO_SAMPLE
 } ADCSampleIndex_t;
 
 // Map ADC channels to samples, must be in same order as ADCSampleIndex_t
-#if ENABLE_EXT_ADCS
+
 static const ADC_CHANNEL_T channelMap[NUM_ADCS_TO_SAMPLE] = {TEMPERATURE_ADC,
 															 BATT_V_ADC,
-															 CURR_SENSE_ADC,
-															 EXT_1_ADC,
-															 EXT_2_ADC};
+															 CURR_SENSE_ADC
+#ifdef ENABLE_EXT_1_ADC
+															 , EXT_1_ADC
+#endif
+#ifdef ENABLE_EXT_2_ADC
+															 , EXT_2_ADC
+#endif
+};
+
+/*
 # else
 static const ADC_CHANNEL_T channelMap[NUM_ADCS_TO_SAMPLE] = {TEMPERATURE_ADC,
 															 BATT_V_ADC,
 															 CURR_SENSE_ADC};
 #endif
+*/
+
 
 static volatile ADCSample_t ADCSamples[NUM_ADCS_TO_SAMPLE];
 
@@ -72,8 +83,10 @@ void ADCInit(void) {
 	Chip_ADC_EnableChannel(LPC_ADC, TEMPERATURE_ADC, ENABLE);
 	Chip_ADC_EnableChannel(LPC_ADC, BATT_V_ADC, ENABLE);
 	Chip_ADC_EnableChannel(LPC_ADC, CURR_SENSE_ADC, ENABLE);
-#if ENABLE_EXT_ADCS
+#ifdef ENABLE_EXT_1_ADC
 	Chip_ADC_EnableChannel(LPC_ADC, EXT_1_ADC, ENABLE);
+#endif
+#ifdef ENABLE_EXT_2_ADC
 	Chip_ADC_EnableChannel(LPC_ADC, EXT_2_ADC, ENABLE);
 #endif
 	Chip_ADC_SetBurstCmd(LPC_ADC, ENABLE);
@@ -156,42 +169,40 @@ uint16_t ADCGetBattVoltage(void) {
 
 	/* Using R:
 
-		library(dplyr)
-		library(ggplot2)
-
-		r_bias <- 10000
-
-		# Lookup table from Vishay NTCS0805E3103JMT datasheet
-		ntc <- data.frame(temp = c(0, 10, 20, 30, 40, 50, 60, 70, 80),
-						  resistance = c(28829, 18515, 12205, 8240.3, 5686.6, 4004.2, 2872.3, 2095.9, 1553.8)) %>%
-		  mutate(ratio = resistance / (resistance + r_bias),
-				 adc_counts = 1024 * ratio)
-
-		mod <- lm(formula = temp ~ adc_counts, data = ntc)
-		summary(mod)
-
-		ntc$prediction <- predict(mod, newdata = ntc)
-
-		ggplot(ntc) + geom_line(aes(x = temp, y = adc_counts), color = 'blue') +
-		  geom_line(aes(x = prediction, y = adc_counts), color = 'red')
+		> library(ggplot2)
+		>
+		> volts <- data.frame(mV = c(15000, 17000, 19000, 21000, 23000, 25000, 27000, 30000),
+		+                     ADC = c(349, 388, 423, 452, 477, 498, 516, 539))
+		>
+		> volts$ADC_2 <- volts$ADC ^ 2
+		>
+		> mod <- lm(formula = mV ~ ADC_2 + ADC, data = volts)
+		> summary(mod)
 
 		Call:
-		lm(formula = temp ~ adc_counts, data = ntc)
+		lm(formula = mV ~ ADC_2 + ADC, data = volts)
 
 		Residuals:
-			Min      1Q  Median      3Q     Max
-		-4.3306 -3.1058 -0.7948  1.8692  6.9908
+			  1       2       3       4       5       6       7       8
+		-169.89  213.50  155.38   14.89 -146.92 -189.35 -104.61  227.00
 
 		Coefficients:
-					 Estimate Std. Error t value Pr(>|t|)
-		(Intercept) 89.922922   2.970277   30.27 1.11e-08 ***
-		adc_counts  -0.122820   0.006504  -18.88 2.90e-07 ***
+					  Estimate Std. Error t value Pr(>|t|)
+		(Intercept)  3.246e+04  4.303e+03   7.543 0.000649 ***
+		ADC_2        2.345e-01  2.201e-02  10.651 0.000126 ***
+		ADC         -1.314e+02  1.961e+01  -6.698 0.001122 **
 		---
 		Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-		Residual standard error: 4.062 on 7 degrees of freedom
-		Multiple R-squared:  0.9807,	Adjusted R-squared:  0.978
-		F-statistic: 356.6 on 1 and 7 DF,  p-value: 2.903e-07
+		Residual standard error: 209.2 on 5 degrees of freedom
+		Multiple R-squared:  0.9988,	Adjusted R-squared:  0.9983
+		F-statistic:  2088 on 2 and 5 DF,  p-value: 4.947e-08
+
+		>
+		> volts$prediction <- predict(mod, newdata = volts)
+		>
+		> ggplot(volts) + geom_line(aes(x = mV, y = ADC), color = 'blue') +
+		+   geom_line(aes(x = prediction, y = ADC), color = 'red')
 
 	*/
 
@@ -206,7 +217,7 @@ uint16_t ADCGetBridgeCurrent(void) {
 }
 
 uint16_t ADCGetExt1(void) {
-#if ENABLE_EXT_ADCS
+#ifdef ENABLE_EXT_1_ADC
 	return(getAverage(SAMPLE_ADC_EXT_1));
 #else
 	return(0xFFFF);
@@ -214,7 +225,7 @@ uint16_t ADCGetExt1(void) {
 }
 
 uint16_t ADCGetExt2(void) {
-#if ENABLE_EXT_ADCS
+#ifdef ENABLE_EXT_2_ADC
 	return(getAverage(SAMPLE_ADC_EXT_2));
 #else
 	return(0xFFFF);
