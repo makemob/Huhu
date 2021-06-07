@@ -13,7 +13,7 @@
 
 #define BOARD_VERSION (1)
 #define FW_VERSION_MAJOR (0)
-#define FW_VERSION_MINOR (6)
+#define FW_VERSION_MINOR (7)
 
 #define HW_TYPE_UKI (1)     // Quadrature position encoder multiplexed with inward endstop
 #define HW_TYPE_HELIOS (2)  // Analog position sensor with dedicated endstops
